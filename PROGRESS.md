@@ -205,3 +205,43 @@
 - `npx tsc --noEmit` 통과 (0건)
 - `npm run build` 성공
 - `npm test` 182건 통과
+
+### Phase 5 인증과 마이페이지 — 완료
+
+- `supabase/migrations/001_init.sql` — **대시보드에 통째로 붙여넣을 수 있는 단일 파일**
+  - PRD 13.1 테이블 8개 + 인덱스 8개
+  - PRD 13.2 RLS 정책 5개
+  - coupons / search_logs / notices도 RLS를 켜고 정책을 만들지 않아
+    service_role만 접근하도록 했습니다 (RLS를 끄면 anon 키로 열립니다)
+  - 가입 시 profiles 자동 생성 트리거 (PRD 11.4 이름 우선순위 반영)
+  - `delete_own_account()` 함수 — PRD 11.6 탈퇴 3단계를 트랜잭션으로 처리
+- `middleware.ts` — 세션 갱신 + `/admin` 이메일 화이트리스트 (PRD 22.3)
+- `app/login` — 이메일 매직링크는 실제 동작, 카카오/구글은 버튼과 흐름만
+- `app/auth/callback` — 매직링크와 OAuth 리다이렉트 공용 처리
+- `app/my` — 로그인/비로그인 분기 (PRD 14.13, 14.14)
+- `app/my/profile` — 내 정보 수정, 태어난 시간 모름 → 입력 전환 (PRD 11.5)
+- 회원 탈퇴 (PRD 11.6), 결제 내역 (PRD 14.15), 문의하기 (PRD 14.16),
+  자주 묻는 질문 (PRD 14.17), 알림 설정
+- `app/terms`, `app/privacy` — 초안
+- `app/api/queries` — "내 결과 저장하기" 저장, 비로그인은 401 → 로그인 후 자동 저장
+- `app/api/inquiry` — 문의 등록 + Slack 알림
+
+#### 건너뛴 항목 (규칙 1)
+
+| 항목 | 처리 |
+|---|---|
+| 카카오 OAuth 앱 등록 | 버튼과 `signInWithOAuth` 호출까지 구현, `talk_message` 스코프 포함. 코드에 TODO 주석 |
+| 구글 OAuth 앱 등록 | 동일 |
+| Supabase 스키마 적용 | SQL 파일만 작성. **원격 DB에 직접 적용하지 않았습니다** — 대시보드에서 직접 붙여넣겠다고 하셔서 그대로 두었습니다 |
+
+`.env.local`이 없어 지금은 목업 모드로 동작합니다. 마이페이지는 비로그인 화면,
+공지 배너와 홈 개인화 블록은 빈 응답, 문의는 접수만 받은 것처럼 응답합니다.
+
+#### 검증
+
+- `npx tsc --noEmit` 통과 (0건)
+- `npm run build` 성공 (라우트 19개)
+- `npm test` 182건 통과
+- 브라우저에서 `/my`, `/my/faq`, `/my/inquiry`, `/my/settings`, `/terms`,
+  `/privacy`, `/login` 200 확인. `/my/profile`, `/my/payments`는 미로그인이라
+  의도대로 리다이렉트

@@ -45,6 +45,9 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
   const [notFound, setNotFound] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>(
+    serverInput ? 'saved' : 'idle'
+  )
 
   const shareRef = useRef<HTMLDivElement>(null)
   const typeShareRef = useRef<HTMLDivElement>(null)
@@ -72,6 +75,22 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
       setNotFound(true)
     }
   }, [serverInput])
+
+  // 로그인 후 ?save=1 로 돌아온 경우 바로 저장합니다
+  useEffect(() => {
+    if (!result || saveState !== 'idle') return
+    if (typeof window === 'undefined') return
+    if (!new URLSearchParams(window.location.search).has('save')) return
+
+    setSaveState('saving')
+    fetch('/api/queries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(result.input),
+    })
+      .then((res) => setSaveState(res.ok ? 'saved' : 'idle'))
+      .catch(() => setSaveState('idle'))
+  }, [result, saveState])
 
   if (notFound) {
     return (
@@ -128,6 +147,36 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
     )
     setModalOpen(false)
     if (needsManualSave) setPreviewImage(dataUrl)
+  }
+
+  /**
+   * 내 결과 저장하기 (PRD 11.2)
+   *
+   * 로그인 상태면 바로 저장하고, 아니면 로그인 후 이 화면으로 돌아와 저장합니다.
+   */
+  async function handleSave() {
+    if (!result) return
+    setSaveState('saving')
+
+    try {
+      const res = await fetch('/api/queries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(result.input),
+      })
+
+      if (res.status === 401) {
+        router.push(`/login?next=${encodeURIComponent('/result?save=1')}`)
+        return
+      }
+      if (!res.ok) {
+        setSaveState('idle')
+        return
+      }
+      setSaveState('saved')
+    } catch {
+      setSaveState('idle')
+    }
   }
 
   /** 시간 미입력 사용자를 태어난 시간 단계로 되돌립니다 (PRD 4.3.3) */
@@ -249,9 +298,11 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
           친구에게 공유
         </button>
 
-        <Link
-          href={`/login?next=${encodeURIComponent('/my')}`}
-          className="flex min-h-[48px] w-full items-center justify-center gap-2 text-body font-semibold"
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saveState === 'saving' || saveState === 'saved'}
+          className="flex min-h-[48px] w-full items-center justify-center gap-2 text-body font-semibold disabled:opacity-60"
           style={{
             background: 'var(--surface)',
             border: '1px solid var(--border)',
@@ -260,8 +311,22 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
           }}
         >
           <UserPlus size={18} aria-hidden />
-          내 결과 저장하기
-        </Link>
+          {saveState === 'saved'
+            ? '저장했어요'
+            : saveState === 'saving'
+              ? '저장하는 중'
+              : '내 결과 저장하기'}
+        </button>
+
+        {saveState === 'saved' && (
+          <Link
+            href="/my"
+            className="block text-center text-label"
+            style={{ color: 'var(--primary)' }}
+          >
+            마이페이지에서 보기
+          </Link>
+        )}
       </section>
 
       <LockedCTA examType={result.input.examType} href={paidHref} />
