@@ -124,3 +124,34 @@
 - `npx tsc --noEmit` 통과 (0건)
 - `npm run build` 성공
 - `npm test` 155건 통과
+
+### Phase 3 레이아웃과 대화형 입력 — 완료
+
+- `components/layout/TabBar.tsx` — 탭 3개 + PRD 14.2 표시 규칙 (`shouldShowTabBar`)
+- `components/layout/NoticeBanner.tsx` — 공지 배너 (PRD 14.5, 22.15)
+- `components/landing/` — Hero, DiffCards, Preview, UserBlock (PRD 14.4, 14.5)
+- `components/chat/` — ChatThread, BotBubble, UserBubble, OptionButtons,
+  DatePickerWidget, TimePickerWidget, TextInputWidget
+- `lib/content/chat-flow.ts` — 방식별 대화 흐름 분기, 답변 되돌리기, 결과 입력 변환
+- `lib/motion.ts` — PRD 14.6 모션 값 그대로 (0.26s / 0.2s / delay 0.045 / ease [0.22,1,0.36,1])
+- 자동 스크롤 + `visualViewport` 키보드 대응
+- sessionStorage 저장·복원, 복원 시 모션 없이 즉시 표시
+
+#### 브라우저 실동작 확인
+
+`npm run dev`로 띄워 375x812에서 필기 흐름을 끝까지 진행했습니다.
+
+- 대분류 → 시험명 → (방식 건너뜀) → 시험 날짜 → 시작 시간 → 생년월일 →
+  태어난 시간 → 이름 → 완료까지 전 단계 정상
+- `defaultType='필기'`이므로 방식 질문이 실제로 건너뛰어졌습니다 (PRD 14.7)
+- 날짜 선택기 범위가 생년월일 1940-01-01~오늘, 시험일 오늘~2030-12-31로 제한됨
+  (절기 테이블 범위와 일치)
+- 새로고침 후 대화 21줄이 애니메이션 없이 즉시 복원됨
+- 이전 답변("2026년 9월 12일") 탭 → 그 단계로 복귀하고 이후 답변이 초기화됨
+- 콘솔 에러 없음
+
+#### 검증
+
+- `npx tsc --noEmit` 통과 (0건)
+- `npm run build` 성공
+- `npm test` 176건 통과

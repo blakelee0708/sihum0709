@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { pretendard } from './fonts/pretendard'
 import './globals.css'
+import TabBar, { TabBarSpacer } from '@/components/layout/TabBar'
 
 export const metadata: Metadata = {
   title: '시험사주 · 오늘의 시험운',
@@ -26,7 +27,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" className={pretendard.variable}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        {children}
+        <TabBarSpacer />
+        <TabBar />
+      </body>
     </html>
   )
 }
