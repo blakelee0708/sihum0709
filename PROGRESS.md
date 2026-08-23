@@ -245,3 +245,48 @@
 - 브라우저에서 `/my`, `/my/faq`, `/my/inquiry`, `/my/settings`, `/terms`,
   `/privacy`, `/login` 200 확인. `/my/profile`, `/my/payments`는 미로그인이라
   의도대로 리다이렉트
+
+### Phase 6 유료 — 완료
+
+- `lib/ai/spec.ts` — D-day 구간별 섹션 구성 (PRD 8.3, 8.4, 8.6)
+  - 구간 판정과 구성 선택을 코드가 합니다. AI에 맡기지 않습니다
+  - 설립일 미확인 시 궁합 → "이 조직에서 나의 위치"로 교체 (PRD 8.7)
+- `lib/ai/search.ts` — Brave / Serper 인터페이스, 키 없으면 목업
+  - PRD 8.10 검색어 3종 그대로
+  - `extractFoundedDate` — 못 찾으면 null, 추측 날짜로 계산하지 않음
+- `lib/ai/prompt.ts` — PRD 8.15 재료 구조 그대로 + 18장 표현 금지 규칙
+  - 시스템 프롬프트에 캐싱 적용 (PRD 8.12)
+- `lib/ai/generate.ts` — claude-sonnet-5, `max_tokens: 6000`, 키 없으면 샘플 JSON
+- `lib/ai/pipeline.ts` — 계산 → 구간 판정 → 검색 → 궁합 → AI 호출
+- `app/checkout` — 더미 결제, 청약철회 동의(PRD 12.3), 쿠폰(12.6),
+  D-day 구간별 결제 전 안내(8.6)
+- `app/start/paid` — 면접 유료 전 추가 입력, 대화형 유지 (PRD 14.10)
+- `app/report/[id]` — 리포트 화면, 생성 중이면 대화 표시, 실패면 재시도 화면
+- `app/api/report`, `app/api/report/retry` — 생성과 사용자 재시도 (최대 3회)
+- `app/api/payment` — 더미 결제 기록 + 쿠폰 적용
+- `components/report/` — SajuTable, ElementBar, MonthCalendar, ReportSection,
+  FailedState, KakaoShareButton
+- `components/chat/GeneratingChat.tsx` — 3.5초 간격 순차 표시 (PRD 14.11)
+
+#### 건너뛴 항목 (규칙 1)
+
+| 항목 | 처리 |
+|---|---|
+| PG 계약 | 더미 결제로 흐름만 완성. `/api/payment`가 PG 검증 없이 기록하므로 **실서비스 전 반드시 교체** 필요. TODO 주석 표시 |
+| 검색 API 키 | Brave / Serper 두 provider 구현 완료. 키가 없으면 "확인되지 않음"을 명시한 목업 문자열을 넣어 AI가 지어내지 못하게 했습니다 |
+| Anthropic API 키 | 호출 코드와 캐싱, 토큰 상한까지 구현. 키가 없으면 샘플 섹션이 저장되고 화면 상단에 샘플임을 표시합니다 |
+| 카카오 나에게 보내기 | 버튼과 링크 복사 대체 동작까지. 카카오 앱 등록 후 연결 필요. TODO 주석 |
+
+#### 브라우저 실동작 확인
+
+- 면접 CTA → `/start/paid`에서 기업명 입력 → "직무는 반도체 공정기술 맞으시죠?"
+  확인 대화 → `/checkout` 이동까지 정상
+- 시험일을 내일로 바꾸니 PRD 8.6 문구가 그대로 노출됨
+  ("시험이 내일이네요. / 7일 플랜 대신 오늘 밤과 내일 아침에 집중한 내용으로 만들어 드립니다.")
+- Supabase 미연결 상태에서 결제 버튼을 누르면 앱이 죽지 않고 안내 문구로 끝남
+
+#### 검증
+
+- `npx tsc --noEmit` 통과 (0건)
+- `npm run build` 성공 (라우트 24개)
+- `npm test` 212건 통과

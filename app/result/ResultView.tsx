@@ -192,10 +192,11 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
     router.push('/start')
   }
 
+  // 면접은 기업명을 먼저 받고(PRD 14.10), 필기는 바로 결제로 갑니다
   const paidHref =
     result.input.examType === '면접'
       ? `/start/paid${queryId ? `?q=${queryId}` : ''}`
-      : `/login?next=${encodeURIComponent(`/report/new${queryId ? `?q=${queryId}` : ''}`)}`
+      : `/checkout${queryId ? `?q=${queryId}` : ''}`
 
   return (
     <main className="mx-auto max-w-md pb-6">

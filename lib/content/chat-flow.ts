@@ -364,3 +364,6 @@ export function toUserInput(answers: Answers) {
 }
 
 export const SESSION_KEY = 'chat'
+
+/** 유료 추가 입력(면접) 저장 키 (PRD 14.10) */
+export const PAID_SESSION_KEY = 'chat-paid'
