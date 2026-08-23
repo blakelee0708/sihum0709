@@ -55,3 +55,39 @@
 
 - `npx tsc --noEmit` 통과 (0건)
 - `npm run build` 성공
+
+### Phase 1 만세력 계산 코어 — 완료
+
+- `scripts/gen-solarterms.py` 작성 후 실행 → `lib/saju/solarterms.json` (91년, 30.7KB)
+  - skyfield 1.55에는 `almanac.solar_terms`가 없어, 태양 겉보기 황경 교차 시각을
+    이분법으로 직접 찾도록 구현했습니다 (1초 이내 수렴)
+  - 천체력 DE421은 스크립트 첫 실행 시 자동으로 내려받습니다 (17MB, `.gitignore` 처리)
+- `lib/saju/constants.ts` — PRD 4.2, 5.1, 5.2 상수 전부
+- `lib/saju/calculate.ts` — PRD 4.2 계산 순서 + 4.3 예외 3가지 + 4.4 기업 3기둥
+- `lib/saju/elements.ts` — PRD 5.2~5.5
+- `lib/saju/fortune.ts` — PRD 6.1~6.6
+- `lib/saju/compatibility.ts` — PRD 6.7
+- `lib/saju/particle.ts` — PRD 3.8 조사 처리 + README render
+- `lib/saju/calculate.test.ts` — 검증 사례 10건, 기대값 TODO (규칙 3)
+- `test/saju-output.md` — 10건 계산 결과 표 (`npm test` 실행 시 재생성)
+
+#### 절기 계산 검증
+
+생성된 값이 공표 만세력과 일치합니다.
+
+| 연도 | 계산된 입춘 (KST) | 비고 |
+|---|---|---|
+| 2024 | 02-04 17:27 | 공표값 일치 |
+| 2025 | 02-03 23:10 | 공표값 일치 (2월 3일인 해) |
+| 1988 | 02-04 23:43 | 공표값 일치 |
+| 2026 | **02-04 05:02** | PRD 예시는 05:46 |
+
+일주 기준일도 독립 검증했습니다. PRD가 준 `1900-01-01 = 갑술(인덱스 10)`을 그대로
+쓴 결과 `1936-02-12 = 갑자일`이 나오며, 이는 국내 만세력에서 널리 쓰는 기준일과
+일치합니다. 두 앵커 모두 테스트로 고정해 두었습니다.
+
+#### 검증
+
+- `npx tsc --noEmit` 통과 (0건)
+- `npm run build` 성공
+- `npm test` 107건 통과
