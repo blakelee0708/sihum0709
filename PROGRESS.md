@@ -91,3 +91,36 @@
 - `npx tsc --noEmit` 통과 (0건)
 - `npm run build` 성공
 - `npm test` 107건 통과
+
+### Phase 2 콘텐츠 배치와 조립 — 완료
+
+- `lib/content/chat-scripts.ts` — PRD 21.10 문구 27개 (공통 10 / 면접 6 / 유료 3 / 생성 중 8)
+- `lib/content/characters.ts` — PRD 7.2 표정 5단계, 7.3 유형 뱃지 5종, 7.4 뱃지 스타일,
+  9.1 공유 그라데이션
+- `lib/content/fragments.ts` — 조각 JSON 로더 + 타입, 프리셋 시험 로더
+- `lib/content/assemble.ts` — README 조립 규칙대로 카드별 조각 조립
+  - 변수 치환 8종 (name, exam, jobPhrase, examDate, examParticle, startTime,
+    branchName, branchHanja)
+  - PRD 3.3 방식별 카드 제목 변화
+  - PRD 3.7 변형 선택 `dayPillarIndex % 7`
+  - PRD 6.5 시작 시간 미입력 시 카드 8 숨김
+  - PRD 21.7 면접이면 말풍선의 "시험"을 "면접"으로 치환
+
+#### 조각 개수 검증
+
+`lib/content/assemble.test.ts`가 README 표와 실제 JSON을 대조합니다. 전부 일치했습니다.
+
+- 무료 조각 **167개** (speechBubble 5 · dayStem 10 · methodIntro 21 ·
+  workTypeByStrong 20 · startTimeByRelation 15 ...)
+- 유료 조각 **10개**
+- 프리셋 대분류 **8개**, 시험명 **52개**
+- 대화 문구 **27개**
+
+조립 결과에 미치환 변수(`{...}`)가 남지 않는지, 이름을 건너뛰었을 때 "님"이
+남지 않는지, 같은 입력에 같은 결과가 나오는지(PRD 3.1 결정론)도 함께 검사합니다.
+
+#### 검증
+
+- `npx tsc --noEmit` 통과 (0건)
+- `npm run build` 성공
+- `npm test` 155건 통과
