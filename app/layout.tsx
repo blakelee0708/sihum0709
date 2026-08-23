@@ -4,6 +4,9 @@ import './globals.css'
 import TabBar, { TabBarSpacer } from '@/components/layout/TabBar'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  ),
   title: '시험사주 · 오늘의 시험운',
   description:
     '생년월일과 시험 날짜로 그날의 흐름을 봅니다. 시험 전 7일 기운, 나에게 맞는 시험 방식, 시작 시간 궁합까지.',
