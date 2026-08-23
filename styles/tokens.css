@@ -1,0 +1,43 @@
+/* PRD 21.2 색상 토큰 / 21.4 레이아웃 토큰 */
+
+:root {
+  /* 브랜드 (화면 전체) */
+  --bg: #E8F0FF;
+  --surface: #FFFFFF;
+  --primary: #4B7BF5;
+  --button: #0F1729;
+  --text: #1A1D26;
+  --text-sub: #7A8394;
+  --border: #E3E8F2;
+
+  /* 오행 (뱃지, 공유 이미지 전용) */
+  --wood: #4CAF7D;
+  --fire: #E5533D;
+  --earth: #C9A227;
+  --metal: #8E9AAF;
+  --water: #3D5AE5;
+
+  /* 상태 */
+  --score-high: #3DAF6E;
+  --score-mid: #4B7BF5;
+  --score-low: #E5A03D;
+
+  /* 모서리 (21.4) */
+  --radius-card: 24px;
+  --radius-button: 16px;
+  --radius-chip: 20px;
+  --radius-round: 999px;
+
+  /* 간격 (21.4) */
+  --pad-screen: 20px;
+  --gap-card: 12px;
+  --pad-card: 20px;
+  --gap-section: 28px;
+
+  /* 그림자 (21.4) */
+  --shadow-card: 0 2px 12px rgba(26, 29, 38, 0.06);
+  --shadow-button: 0 4px 16px rgba(15, 23, 41, 0.16);
+
+  /* 대화 UI (21.11) */
+  --surface-1: #FFFFFF;
+}
