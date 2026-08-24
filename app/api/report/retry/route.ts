@@ -11,7 +11,7 @@ import { runPipeline } from '@/lib/ai/pipeline'
 import { GenerateError } from '@/lib/ai/generate'
 import type { UserInput } from '@/lib/content/assemble'
 import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
-import { createClient, isSupabaseConfigured } from '@/lib/supabase/server'
+import { createClient, createServiceClient, isSupabaseConfigured } from '@/lib/supabase/server'
 
 const MAX_RETRY = 3
 
@@ -87,6 +87,12 @@ export async function POST(req: NextRequest) {
 
   if (!query) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
+  // reports는 사용자 정책이 select 전용입니다 (PRD 13.2)
+  const service = createServiceClient()
+  if (!service) {
+    return NextResponse.json({ error: 'service key required' }, { status: 503 })
+  }
+
   const userInput: UserInput = {
     name: query.name,
     examName: query.exam_name,
@@ -102,7 +108,7 @@ export async function POST(req: NextRequest) {
     jobTitle: query.job_title,
   }
 
-  await supabase
+  await service
     .from('reports')
     .update({ status: 'pending', retry_count: retryCount + 1 })
     .eq('id', report.id)
@@ -110,7 +116,7 @@ export async function POST(req: NextRequest) {
   try {
     const out = await runPipeline({ userInput, companyName: query.company_name })
 
-    await supabase
+    await service
       .from('reports')
       .update({
         report_type: out.reportType,
@@ -137,7 +143,7 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const kind = e instanceof GenerateError ? e.kind : '알 수 없는 오류'
 
-    await supabase
+    await service
       .from('reports')
       .update({ status: 'failed', error_message: kind })
       .eq('id', report.id)

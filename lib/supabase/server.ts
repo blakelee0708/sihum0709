@@ -31,6 +31,10 @@ export async function createClient() {
 /**
  * RLS를 우회하는 service_role 클라이언트 (PRD 13.2).
  * 서버 라우트에서만 사용하며, 키가 없으면 null을 반환합니다.
+ *
+ * reports와 payments는 사용자 정책이 select 전용입니다 (PRD 13.2).
+ * 사용자가 "결제했다"는 행을 직접 만들 수 없어야 하므로, 이 두 테이블에 쓰는
+ * 서버 라우트는 반드시 이 클라이언트를 써야 합니다.
  */
 export function createServiceClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY

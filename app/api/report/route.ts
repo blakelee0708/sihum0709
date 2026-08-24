@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'not configured' }, { status: 503 })
   }
 
-  let body: { queryId?: string; companyName?: string }
+  let body: { queryId?: string; companyName?: string; paymentId?: string }
   try {
     body = await req.json()
   } catch {
@@ -78,6 +78,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: existing.id, existed: true })
   }
 
+  // reports는 사용자 정책이 select 전용입니다 (PRD 13.2). 쓰기는 service_role로 합니다.
+  const service = createServiceClient()
+  if (!service) {
+    return NextResponse.json({ error: 'service key required' }, { status: 503 })
+  }
+
   const companyName = body.companyName?.trim() || query.company_name || null
 
   const userInput: UserInput = {
@@ -104,7 +110,7 @@ export async function POST(req: NextRequest) {
   const reportId =
     existing?.id ??
     (
-      await supabase
+      await service
         .from('reports')
         .insert({
           user_id: user.id,
@@ -124,7 +130,7 @@ export async function POST(req: NextRequest) {
   try {
     const out = await runPipeline({ userInput, companyName })
 
-    await supabase
+    await service
       .from('reports')
       .update({
         report_type: out.reportType,
@@ -147,18 +153,52 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', reportId)
 
+    // 결제 내역에서 리포트로 바로 갈 수 있도록 연결합니다 (PRD 14.15)
+    await linkPayment(service, body.paymentId ?? null, user.id, reportId)
+
     await logSearches(out.searchLogs)
 
     return NextResponse.json({ id: reportId, mock: out.generated.mock })
   } catch (e) {
     const kind = e instanceof GenerateError ? e.kind : '알 수 없는 오류'
 
-    await supabase
+    await service
       .from('reports')
       .update({ status: 'failed', error_message: kind })
       .eq('id', reportId)
 
     return NextResponse.json({ id: reportId, error: kind }, { status: 500 })
+  }
+}
+
+/**
+ * 결제 건과 리포트를 연결합니다 (PRD 14.15 결제 내역의 리포트 보기).
+ * paymentId를 못 받았으면 이 사용자의 아직 연결되지 않은 최근 결제에 붙입니다.
+ */
+async function linkPayment(
+  service: ReturnType<typeof createServiceClient>,
+  paymentId: string | null,
+  userId: string,
+  reportId: string
+) {
+  if (!service) return
+
+  if (paymentId) {
+    await service.from('payments').update({ report_id: reportId }).eq('id', paymentId)
+    return
+  }
+
+  const { data } = await service
+    .from('payments')
+    .select('id')
+    .eq('user_id', userId)
+    .is('report_id', null)
+    .order('paid_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (data) {
+    await service.from('payments').update({ report_id: reportId }).eq('id', data.id)
   }
 }
 

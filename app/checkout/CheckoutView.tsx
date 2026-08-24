@@ -102,13 +102,14 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
         return
       }
       if (!payRes.ok) throw new Error('payment')
+      const paymentId = ((await payRes.json()) as { id?: string }).id ?? null
 
       // 3. 리포트 생성
       setPhase('generating')
       const repRes = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ queryId: qid, companyName }),
+        body: JSON.stringify({ queryId: qid, companyName, paymentId }),
       })
 
       const repJson = (await repRes.json().catch(() => ({}))) as {

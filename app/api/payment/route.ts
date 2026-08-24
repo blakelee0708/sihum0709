@@ -49,7 +49,14 @@ export async function POST(req: NextRequest) {
 
   const { amount, couponCode } = await applyCoupon(body.couponCode ?? null)
 
-  const { data, error } = await supabase
+  // payments는 사용자 정책이 select 전용입니다 (PRD 13.2).
+  // 사용자가 결제 기록을 직접 만들 수 없어야 하므로 service_role로 씁니다.
+  const service = createServiceClient()
+  if (!service) {
+    return NextResponse.json({ error: 'service key required' }, { status: 503 })
+  }
+
+  const { data, error } = await service
     .from('payments')
     .insert({
       user_id: user.id,
