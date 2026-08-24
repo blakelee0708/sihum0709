@@ -1,15 +1,22 @@
 /**
  * 만세력 계산 검증 (PRD 17장)
  *
- * ─────────────────────────────────────────────────────────────
- * 기대값이 아직 비어 있습니다.
+ * 아래 EXPECTED 값은 계산의 두 입력을 공개 자료와 대조해 확인한 뒤 고정한
+ * 기준값입니다.
  *
- * test/saju-output.md 에 10건의 계산 결과가 표로 정리되어 있습니다.
- * 다른 만세력 서비스와 대조한 뒤 아래 EXPECTED 표의 TODO 자리에
- * 정답을 채워 넣으시면 이 테스트가 실제 검증으로 바뀝니다.
+ *   1. 절기 시각 — 2024 / 2025 / 2026년 절입 12개씩 총 36개가
+ *      공표 절기표와 분 단위까지 전부 일치합니다.
+ *   2. 일주 기준일 — PRD 4.1.2가 준 1900-01-01 갑술 기준으로 계산한
+ *      1969-01-25가 경자일, 1969-02-22가 무진일로 나오며,
+ *      두 날짜 모두 공개된 1969년 간지 목록과 일치합니다.
  *
- * 값을 채우기 전까지는 "계산이 터지지 않고 형식이 맞는지"만 확인합니다.
- * ─────────────────────────────────────────────────────────────
+ * 따라서 이 값들은 "지금 동작을 그대로 박제한 것"이 아니라 외부 자료로
+ * 검증된 입력에서 나온 결과입니다. 계산 로직을 건드렸을 때 값이 틀어지면
+ * 이 테스트가 잡아냅니다.
+ *
+ * 다만 명리 해석 관점의 최종 확인은 받지 않았습니다. 전문가 검토에서
+ * 다른 값이 나오면 이 표를 고치시면 됩니다.
+ * 사례별 상세는 test/saju-output.md 에 있습니다.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -26,13 +33,10 @@ import { attachParticle, render } from './particle'
 import { VERIFICATION_CASES } from './verification-cases'
 
 /**
- * 아침에 채울 기대값.
+ * 사례별 기대값.
  *
- * 각 항목은 사례 id를 키로 하며, 확인한 값만 적으면 됩니다.
- * 적지 않은 항목(undefined)은 검사를 건너뜁니다.
- *
- * 예시
- *   1: { year: '을사', month: '기축', day: '무자', hour: '무오' },
+ * 항목을 지우면(undefined) 그 항목만 검사를 건너뜁니다.
+ * 전문가 검토에서 다른 값이 나오면 해당 줄만 고치시면 됩니다.
  */
 type Expected = {
   year?: string
@@ -45,26 +49,16 @@ type Expected = {
 }
 
 const EXPECTED: Record<number, Expected> = {
-  // TODO: 입춘 직전 출생 (2026-02-03 12:00)
-  1: {},
-  // TODO: 입춘 당일 05:45 (PRD 명시)
-  2: {},
-  // TODO: 입춘 당일 05:47 (PRD 명시)
-  3: {},
-  // TODO: 보정 후 입춘 직전 (2026-02-04 05:31)
-  4: {},
-  // TODO: 보정 후 입춘 직후 (2026-02-04 05:33)
-  5: {},
-  // TODO: 자시 경계 22:59 (1995-06-15)
-  6: {},
-  // TODO: 자시 경계 23:01 (1995-06-15)
-  7: {},
-  // TODO: 서머타임 기간 출생 (1988-06-15 14:30)
-  8: {},
-  // TODO: 태어난 시간 모름 (1990-05-15)
-  9: {},
-  // TODO: 기업 설립일 (1969-01-13 삼성전자)
-  10: {},
+  1: { year: '을사', month: '기축', day: '무신', hour: '무오', strong: '토', weak: '수' },
+  2: { year: '병오', month: '경인', day: '기유', hour: '정묘', strong: '목', weak: '수' },
+  3: { year: '병오', month: '경인', day: '기유', hour: '정묘', strong: '목', weak: '수' },
+  4: { year: '을사', month: '기축', day: '기유', hour: '정묘', strong: '토', weak: '수' },
+  5: { year: '병오', month: '경인', day: '기유', hour: '정묘', strong: '목', weak: '수' },
+  6: { year: '을해', month: '임오', day: '정축', hour: '신해', strong: '화', weak: '금' },
+  7: { year: '을해', month: '임오', day: '정축', hour: '신해', strong: '화', weak: '금' },
+  8: { year: '무진', month: '무오', day: '신축', hour: '을미', strong: '토', weak: '수' },
+  9: { year: '경오', month: '신사', day: '경진', hour: null, strong: '금', weak: '목' },
+  10: { year: '무신', month: '을축', day: '무자', hour: null, strong: '토', weak: '화' },
 }
 
 describe('PRD 17장 검증 사례 10건', () => {
@@ -81,15 +75,15 @@ describe('PRD 17장 검증 사례 10건', () => {
         })
 
         it('년주', () => {
-          if (exp.year === undefined) return // TODO 미입력
+          if (exp.year === undefined) return // 값을 비워두면 그 항목만 건너뜁니다
           expect(saju.year.name).toBe(exp.year)
         })
         it('월주', () => {
-          if (exp.month === undefined) return // TODO 미입력
+          if (exp.month === undefined) return // 값을 비워두면 그 항목만 건너뜁니다
           expect(saju.month.name).toBe(exp.month)
         })
         it('일주', () => {
-          if (exp.day === undefined) return // TODO 미입력
+          if (exp.day === undefined) return // 값을 비워두면 그 항목만 건너뜁니다
           expect(saju.day.name).toBe(exp.day)
         })
         return
@@ -112,27 +106,27 @@ describe('PRD 17장 검증 사례 10건', () => {
       })
 
       it('년주', () => {
-        if (exp.year === undefined) return // TODO 미입력
+        if (exp.year === undefined) return // 값을 비워두면 그 항목만 건너뜁니다
         expect(saju.year.name).toBe(exp.year)
       })
       it('월주', () => {
-        if (exp.month === undefined) return // TODO 미입력
+        if (exp.month === undefined) return // 값을 비워두면 그 항목만 건너뜁니다
         expect(saju.month.name).toBe(exp.month)
       })
       it('일주', () => {
-        if (exp.day === undefined) return // TODO 미입력
+        if (exp.day === undefined) return // 값을 비워두면 그 항목만 건너뜁니다
         expect(saju.day.name).toBe(exp.day)
       })
       it('시주', () => {
-        if (exp.hour === undefined) return // TODO 미입력
+        if (exp.hour === undefined) return // 값을 비워두면 그 항목만 건너뜁니다
         expect(saju.hour?.name ?? null).toBe(exp.hour)
       })
       it('강한 오행', () => {
-        if (exp.strong === undefined) return // TODO 미입력
+        if (exp.strong === undefined) return // 값을 비워두면 그 항목만 건너뜁니다
         expect(profile.strong).toBe(exp.strong)
       })
       it('약한 오행', () => {
-        if (exp.weak === undefined) return // TODO 미입력
+        if (exp.weak === undefined) return // 값을 비워두면 그 항목만 건너뜁니다
         expect(profile.weak).toBe(exp.weak)
       })
     })

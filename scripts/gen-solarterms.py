@@ -111,9 +111,11 @@ def main():
             t = ts.tt_jd(jd)
             dt_utc = t.utc_datetime().replace(tzinfo=None)
             dt_kst = dt_utc + _dt.timedelta(hours=KST_HOURS)
-            # 분 단위 반올림 (1940년은 epoch 이전이라 timestamp 연산을 쓰지 않습니다)
-            if dt_kst.second >= 30:
-                dt_kst += _dt.timedelta(minutes=1)
+            # 초는 버립니다(반올림하지 않습니다).
+            #
+            # 국내에 공표되는 절기표가 초를 버린 값을 씁니다. 반올림하면
+            # 절입 초가 30초를 넘는 절기마다 1분씩 늦게 나와 다른 만세력과
+            # 어긋납니다. 실제로 2026년 12개 중 6개가 1분씩 밀렸습니다.
             dt_kst = dt_kst.replace(second=0, microsecond=0)
 
             # 절기가 예상 연도에 들어왔는지 확인
