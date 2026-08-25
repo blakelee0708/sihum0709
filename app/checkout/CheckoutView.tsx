@@ -26,6 +26,7 @@ import { DDAY_NOTICE } from '@/lib/ai/spec'
 import { getReportDdayRange, diffDays } from '@/lib/saju/fortune'
 import { parseLocalDateTime } from '@/lib/saju/calculate'
 import type { UserInput } from '@/lib/content/assemble'
+import { track } from '@/lib/analytics'
 
 type Phase = 'ready' | 'paying' | 'generating' | 'error'
 
@@ -55,6 +56,15 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
       // 세션이 없으면 아래에서 안내합니다
     }
   }, [])
+
+  // 결제 화면 도달 — CTA 클릭 대비 결제 전환율의 분모입니다
+  useEffect(() => {
+    if (!input) return
+    track('checkout_viewed', {
+      examType: input.examType,
+      priceShown: PRICE,
+    })
+  }, [input])
 
   const dday = input
     ? diffDays(new Date(), parseLocalDateTime(input.examDate, null))
@@ -103,6 +113,12 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
       }
       if (!payRes.ok) throw new Error('payment')
       const paymentId = ((await payRes.json()) as { id?: string }).id ?? null
+
+      track('payment_completed', {
+        examType: input.examType,
+        priceShown: PRICE,
+        ddayRange: ddayRange ?? undefined,
+      })
 
       // 3. 리포트 생성
       setPhase('generating')

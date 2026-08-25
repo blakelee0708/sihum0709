@@ -11,8 +11,19 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+/*
+ * PRD 21.9 — 최소 폭 320px 대응.
+ *
+ * body에 min-width: 320px를 주면 320px 화면에서 세로 스크롤바 폭만큼
+ * 가로 스크롤이 생깁니다. 대응하라는 것이지 강제하라는 것이 아니므로
+ * 가로 넘침을 막는 쪽으로 둡니다.
+ */
+html {
+  overflow-x: hidden;
+}
+
 body {
-  min-width: 320px;
+  overflow-x: hidden;
 }
 
 /* PRD 21.9 접근성 — prefers-reduced-motion 존중 */

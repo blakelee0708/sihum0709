@@ -11,6 +11,8 @@ import Link from 'next/link'
 import { Lock } from 'lucide-react'
 
 import type { ExamType } from '@/lib/saju/constants'
+import { track } from '@/lib/analytics'
+import WaitlistForm from './WaitlistForm'
 
 const LOCKED: Record<'필기' | '면접', { heading: string[]; items: string[] }> = {
   필기: {
@@ -39,10 +41,21 @@ interface Props {
   examType: ExamType
   /** 결제 흐름 진입 경로 */
   href: string
-  onNotify?: () => void
+  /** 시험명. 알림 신청과 계측에 함께 남깁니다 */
+  examName: string
+  /** 강한 오행. 유형별 결제율 산출용 (PRD 22.12) */
+  strongElement?: string
+  /** D-day 구간. 구간별 결제율 산출용 (PRD 22.12) */
+  ddayRange?: string
 }
 
-export default function LockedCTA({ examType, href, onNotify }: Props) {
+export default function LockedCTA({
+  examType,
+  href,
+  examName,
+  strongElement,
+  ddayRange,
+}: Props) {
   if (examType === '실기') {
     return (
       <section className="px-screen pt-section">
@@ -55,17 +68,15 @@ export default function LockedCTA({ examType, href, onNotify }: Props) {
           }}
         >
           <p className="text-body">실기 시험 상세 리포트는 준비 중입니다.</p>
-          <button
-            type="button"
-            onClick={onNotify}
-            className="mt-4 min-h-[48px] w-full text-body font-semibold text-white"
-            style={{
-              background: 'var(--button)',
-              borderRadius: 'var(--radius-button)',
-            }}
-          >
-            알림 받기
-          </button>
+          <p className="mt-1 text-label" style={{ color: 'var(--text-sub)' }}>
+            준비되면 메일로 알려드릴게요.
+          </p>
+
+          <WaitlistForm
+            reason="practical"
+            examName={examName}
+            examType={examType}
+          />
         </div>
       </section>
     )
@@ -104,6 +115,14 @@ export default function LockedCTA({ examType, href, onNotify }: Props) {
 
         <Link
           href={href}
+          onClick={() =>
+            track('paid_cta_click', {
+              examType,
+              strongElement,
+              ddayRange,
+              priceShown: PRICE,
+            })
+          }
           className="mt-5 flex min-h-[52px] w-full items-center justify-center text-body font-semibold text-white"
           style={{
             background: 'var(--button)',

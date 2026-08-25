@@ -14,6 +14,27 @@ export const metadata: Metadata = {
     icon: '/icon-512.png',
     apple: '/apple-icon.png',
   },
+  keywords: [
+    '시험사주', '시험운', '사주', '만세력', '공무원 시험', '면접운',
+    '수능 사주', '시험 날짜', '오늘의 운세',
+  ],
+  openGraph: {
+    type: 'website',
+    locale: 'ko_KR',
+    siteName: '시험사주',
+    title: '시험 보는 날, 내 기운은 어떨까?',
+    description:
+      '생년월일과 시험 날짜로 그날의 흐름을 봅니다. 시험 전 7일 기운, 나에게 맞는 시험 방식, 시작 시간 궁합까지.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '시험 보는 날, 내 기운은 어떨까?',
+    description: '생년월일과 시험 날짜로 그날의 흐름을 봅니다.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export const viewport: Viewport = {

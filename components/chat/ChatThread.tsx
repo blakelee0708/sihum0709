@@ -29,6 +29,7 @@ import {
   OPTION_DELAY_MS,
   optionMotion,
 } from '@/lib/motion'
+import { track } from '@/lib/analytics'
 import type { ExamType, CompanyScale, WorkType } from '@/lib/saju/constants'
 
 import BotBubble from './BotBubble'
@@ -133,6 +134,8 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
   function answer(id: StepId, value: unknown) {
     setInstant(false)
     setFreeInput(false)
+    // 어느 단계까지 왔는지만 남깁니다. 답변 내용은 기록하지 않습니다
+    track('chat_step_answered', { step: id })
     setAnswers((prev) => ({ ...prev, [id]: value }))
   }
 
@@ -279,7 +282,10 @@ function StepWidget({
         <motion.button
           {...optionMotion(0)}
           type="button"
-          onClick={onFinish}
+          onClick={() => {
+            track('chat_completed')
+            onFinish()
+          }}
           className="min-h-[44px] w-full py-3 text-chat text-white"
           style={{
             background: 'var(--button)',

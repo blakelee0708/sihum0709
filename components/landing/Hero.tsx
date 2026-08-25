@@ -5,10 +5,13 @@
  * 문구를 "운이랑 이야기하기"로 해서 다음 화면에 무엇이 나올지 예고합니다.
  */
 
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
 
 import { CHARACTER_HERO, CHARACTER_NAME } from '@/lib/content/characters'
+import { track } from '@/lib/analytics'
 
 export default function Hero() {
   return (
@@ -35,6 +38,7 @@ export default function Hero() {
 
       <Link
         href="/start"
+        onClick={() => track('landing_cta_click')}
         className="mt-6 flex min-h-[52px] w-full items-center justify-center text-body font-semibold text-white"
         style={{
           background: 'var(--button)',

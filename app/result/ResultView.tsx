@@ -31,6 +31,7 @@ import {
 } from '@/lib/content/assemble'
 import { SESSION_KEY, resetFrom, type Answers, toUserInput } from '@/lib/content/chat-flow'
 import { captureNode } from '@/lib/share'
+import { track } from '@/lib/analytics'
 
 interface Props {
   /** 저장된 조회를 여는 경우 서버에서 넘겨받은 입력 */
@@ -75,6 +76,16 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
       setNotFound(true)
     }
   }, [serverInput])
+
+  // 결과 도달 — 입력 완주율과 방식별 분포의 기준점입니다
+  useEffect(() => {
+    if (!result) return
+    track('result_viewed', {
+      examType: result.input.examType,
+      strongElement: result.profile.strong,
+      ddayRange: result.ddayRange,
+    })
+  }, [result])
 
   // 로그인 후 ?save=1 로 돌아온 경우 바로 저장합니다
   useEffect(() => {
@@ -132,6 +143,7 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
 
   async function handleShare() {
     if (!shareRef.current) return
+    track('share_clicked', { examType: result!.input.examType })
     const { needsManualSave, dataUrl } = await captureNode(
       shareRef.current,
       `시험사주_${result!.input.name ?? '결과'}.png`
@@ -141,6 +153,7 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
 
   async function handleTypeShare() {
     if (!typeShareRef.current) return
+    track('type_share_clicked', { strongElement: result!.badge.element })
     const { needsManualSave, dataUrl } = await captureNode(
       typeShareRef.current,
       `시험사주_${result!.badge.name}.png`
@@ -156,6 +169,7 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
    */
   async function handleSave() {
     if (!result) return
+    track('save_clicked', { examType: result.input.examType })
     setSaveState('saving')
 
     try {
@@ -330,7 +344,13 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
         )}
       </section>
 
-      <LockedCTA examType={result.input.examType} href={paidHref} />
+      <LockedCTA
+        examType={result.input.examType}
+        href={paidHref}
+        examName={result.input.examName}
+        strongElement={result.profile.strong}
+        ddayRange={result.ddayRange}
+      />
 
       <Disclaimer />
 
