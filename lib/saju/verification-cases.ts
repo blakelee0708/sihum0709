@@ -1,28 +1,41 @@
 /**
- * PRD 17장 검증 사례 10건
+ * 만세력 검증 사례 10건
  *
- * PRD가 반드시 포함하라고 명시한 항목
- *   - 입춘 직전 출생 (2월 3일)
- *   - 입춘 당일 시각 전후 (05:45 / 05:47)
- *   - 자시 경계 (22:59 / 23:01)
- *   - 서머타임 기간 출생 (1988년 6월)
- *   - 태어난 시간 모름
- *   - 기업 설립일 (시간 없음)
+ * 확정된 계산 규칙을 확인하는 사례입니다.
  *
- * 기대값은 아직 없습니다. test/saju-output.md의 계산 결과를 다른 만세력
- * 서비스와 대조한 뒤 calculate.test.ts에 채워 넣으시기 바랍니다.
+ *   - 절기 경계(년주, 월주)는 보정하지 않은 원본 시각으로 판정
+ *   - 시주는 보정 후 시각으로 판정 (실질 자시 시작 23:30)
+ *   - 일주는 원본 날짜 기준 (조자시 방식)
+ *
+ * 각 사례에는 기대 결과(expect)를 함께 적어 두었고,
+ * test/saju-output.md 가 실제 계산값과 대조해 O/X로 표시합니다.
  */
+
+export interface CaseExpectation {
+  /** 기대하는 년주 (예: '을사') */
+  year?: string
+  /** 기대하는 보정 후 시각 'HH:mm' */
+  corrected?: string
+  /** 기대하는 시지 이름 (예: '해시', '자시') */
+  hourBranch?: string
+  /** 일주가 어느 날짜 기준이어야 하는지 'YYYY-MM-DD' */
+  dayOf?: string
+  /** 기둥 개수 */
+  pillars?: 3 | 4
+}
 
 export interface VerificationCase {
   id: number
   label: string
-  /** PRD 17장의 어떤 항목을 확인하는 사례인지 */
+  /** 이 사례로 무엇을 확인하는지 */
   purpose: string
   birthDate: string
   birthTime: string | null
   hasBirthTime: boolean
   /** 기업 설립일 사례면 true (3기둥만 계산) */
   isCompany?: boolean
+  /** 기대 결과. saju-output.md 가 실제값과 대조합니다 */
+  expect: CaseExpectation
   /** 확인할 때 눈여겨봐야 할 점 */
   note?: string
 }
@@ -30,84 +43,91 @@ export interface VerificationCase {
 export const VERIFICATION_CASES: VerificationCase[] = [
   {
     id: 1,
-    label: '입춘 직전 출생 (2월 3일)',
-    purpose: '입춘 경계 — 전년도로 넘어가는지',
+    label: '입춘 전날',
+    purpose: '입춘 전날 출생은 을사년이어야 함',
     birthDate: '2026-02-03',
     birthTime: '12:00',
     hasBirthTime: true,
-    note: '2026 입춘은 02-04 05:02이므로 년주가 2025년(을사)이어야 합니다',
+    expect: { year: '을사', pillars: 4 },
+    note: '2026년 입춘은 02-04 05:02입니다',
   },
   {
     id: 2,
-    label: '입춘 당일 05:45 (PRD 명시)',
-    purpose: '입춘 시각 전후 비교',
+    label: '입춘 2분 전',
+    purpose: '보정 없이 원본 시각으로 비교해 을사년이어야 함',
     birthDate: '2026-02-04',
-    birthTime: '05:45',
+    birthTime: '05:00',
     hasBirthTime: true,
-    note: 'PRD 예시는 입춘을 05:46으로 적었으나 실제 계산값은 05:02입니다',
+    expect: { year: '을사', pillars: 4 },
+    note: '보정을 적용했다면 04:30이 되어 역시 을사년이지만, 경계가 달라집니다',
   },
   {
     id: 3,
-    label: '입춘 당일 05:47 (PRD 명시)',
-    purpose: '입춘 시각 전후 비교',
+    label: '입춘 3분 후',
+    purpose: '보정 없이 원본 시각으로 비교해 병오년이어야 함',
     birthDate: '2026-02-04',
-    birthTime: '05:47',
+    birthTime: '05:05',
     hasBirthTime: true,
-    note: '사례 2와 년주가 같게 나옵니다. 아래 사례 4, 5를 함께 보십시오',
+    expect: { year: '병오', pillars: 4 },
+    note: '보정을 적용했다면 04:35이라 을사년이 됐을 자리입니다. 이 사례가 규칙 변경을 확인합니다',
   },
   {
     id: 4,
-    label: '보정 후 입춘 직전 (05:31)',
-    purpose: '경도 보정 30분을 반영한 실제 경계 직전',
-    birthDate: '2026-02-04',
-    birthTime: '05:31',
-    hasBirthTime: true,
-    note: '보정 후 05:01 → 입춘(05:02) 이전 → 2025년(을사)',
-  },
-  {
-    id: 5,
-    label: '보정 후 입춘 직후 (05:33)',
-    purpose: '경도 보정 30분을 반영한 실제 경계 직후',
-    birthDate: '2026-02-04',
-    birthTime: '05:33',
-    hasBirthTime: true,
-    note: '보정 후 05:03 → 입춘(05:02) 이후 → 2026년(병오)',
-  },
-  {
-    id: 6,
-    label: '자시 경계 22:59',
-    purpose: '자시 직전 — 해시로 나와야 함',
+    label: '자시 직전 (22:59)',
+    purpose: '보정 후 22:29이므로 해시',
     birthDate: '1995-06-15',
     birthTime: '22:59',
     hasBirthTime: true,
-    note: '보정 후 22:29 → 해시',
+    expect: { corrected: '22:29', hourBranch: '해시', dayOf: '1995-06-15', pillars: 4 },
+  },
+  {
+    id: 5,
+    label: '자시 시작 (23:31)',
+    purpose: '보정 후 23:01이므로 자시',
+    birthDate: '1995-06-15',
+    birthTime: '23:31',
+    hasBirthTime: true,
+    expect: { corrected: '23:01', hourBranch: '자시', dayOf: '1995-06-15', pillars: 4 },
+    note: '실질 자시 시작이 23:30으로 밀립니다. 의도한 동작입니다',
+  },
+  {
+    id: 6,
+    label: '자정 직후 (00:29) — 날짜 넘어감 확인',
+    purpose: '보정 후 전날 23:59이지만 일주는 6월 16일이어야 함',
+    birthDate: '1995-06-16',
+    birthTime: '00:29',
+    hasBirthTime: true,
+    expect: { corrected: '23:59', hourBranch: '자시', dayOf: '1995-06-16', pillars: 4 },
+    note: '가장 중요한 사례입니다. 보정 때문에 시각이 전날로 넘어가도 조자시 방식이므로 일주는 원본 날짜(6/16)를 유지해야 합니다',
   },
   {
     id: 7,
-    label: '자시 경계 23:01',
-    purpose: '자시 직후 — 조자시 방식이므로 일주는 당일 유지',
-    birthDate: '1995-06-15',
-    birthTime: '23:01',
-    hasBirthTime: true,
-    note: '보정 후 22:31 → 아직 해시입니다. 보정 때문에 경계가 23:30으로 밀립니다',
-  },
-  {
-    id: 8,
-    label: '서머타임 기간 출생 (1988년 6월)',
-    purpose: '서머타임 60분 추가 보정',
+    label: '서머타임 기간 출생',
+    purpose: '30분 + 60분 = 90분 보정',
     birthDate: '1988-06-15',
     birthTime: '14:30',
     hasBirthTime: true,
-    note: '1988-05-08 ~ 1988-10-09 구간. 30분 + 60분 = 90분을 뺍니다 → 13:00',
+    expect: { corrected: '13:00', pillars: 4 },
+    note: '1988-05-08 ~ 1988-10-09 구간',
+  },
+  {
+    id: 8,
+    label: '일반 사례',
+    purpose: '평상시 30분 보정',
+    birthDate: '1990-05-15',
+    birthTime: '14:30',
+    hasBirthTime: true,
+    expect: { corrected: '14:00', pillars: 4 },
   },
   {
     id: 9,
     label: '태어난 시간 모름',
-    purpose: '3기둥 진행 + 시간 보정 생략',
+    purpose: '3기둥으로 진행, 보정 없음',
     birthDate: '1990-05-15',
     birthTime: null,
     hasBirthTime: false,
-    note: '시주가 없고 오행 가중치에서 시간, 시지를 제외합니다',
+    expect: { pillars: 3 },
+    note: '8번과 같은 날짜입니다. 시주만 빠지고 년월일주는 같아야 합니다',
   },
   {
     id: 10,
@@ -117,6 +137,7 @@ export const VERIFICATION_CASES: VerificationCase[] = [
     birthTime: null,
     hasBirthTime: false,
     isCompany: true,
-    note: 'PRD 8.7 출력 예시의 설립일입니다. 소한(01-06) 이후이므로 축월입니다',
+    expect: { pillars: 3 },
+    note: '소한(01-06) 이후이므로 축월입니다',
   },
 ]

@@ -1,12 +1,23 @@
 /**
  * 만세력 4기둥 계산 (PRD 4.2, 4.3, 4.4)
  *
+ * ── 시간 보정을 어디에 적용하는가 (확정 규칙) ──
+ *
+ * 경도 보정(30분)과 서머타임 보정(60분)은 **시주 계산에만** 적용합니다.
+ *
+ * 절기 테이블은 KST 기준으로 생성했습니다. 여기에 보정된 출생 시각을
+ * 맞대면 기준이 섞입니다. 절기 경계(년주, 월주)는 보정하지 않은 원본
+ * 시각으로 비교하고, 일주도 원본 날짜로 셉니다.
+ *
+ * 반대로 시지는 "그 사람이 실제로 몇 시에 태어났는가"를 묻는 자리이므로
+ * 보정을 적용합니다. 그 결과 실질 자시 시작이 23:30이 되지만, 경도 보정을
+ * 도입한 이상 시지에 반영하는 쪽이 일관됩니다. 의도한 동작입니다.
+ *
  * 계산 순서
- *   0단계 시간 보정 (경도 30분, 서머타임 60분)
- *   1단계 년주 (입춘 경계)
- *   2단계 월주 (절입 구간 + 년간 5패턴)
- *   3단계 일주 (1900-01-01 갑술일 기준 경과일)
- *   4단계 시주 (2시간 12구간 + 일간 5패턴)
+ *   1단계 년주 (입춘 경계, 원본 시각)
+ *   2단계 월주 (절입 구간 + 년간 5패턴, 원본 시각)
+ *   3단계 일주 (1900-01-01 갑술일 기준 경과일, 원본 날짜)
+ *   4단계 시주 (보정 시각으로 시지 결정 + 원본 날짜의 일간으로 시간 결정)
  *
  * 예외 (PRD 4.3)
  *   4.3.1 자시  23:00-23:59 출생은 당일 유지 (조자시 방식)
@@ -66,8 +77,10 @@ export interface Saju {
   dayStemElement: Element
   /** 일주 60갑자 인덱스. PRD 3.7 변형 선택에 사용합니다. */
   dayPillarIndex: number
-  /** 보정 후 실제 계산에 쓰인 시각 */
-  adjusted: Date
+  /** 입력받은 원본 시각. 년주·월주·일주가 이 값을 씁니다 */
+  raw: Date
+  /** 보정 후 시각. 시주가 이 값을 씁니다. 시간을 모르면 null */
+  corrected: Date | null
 }
 
 /** PRD 4.4 기업 사주 — 시각 정보가 없으므로 3기둥만 계산합니다 */
@@ -137,11 +150,11 @@ function isInDST(date: Date): boolean {
 /**
  * 출생 시각을 진태양시에 가깝게 보정합니다.
  * 경도 보정 30분, 서머타임 기간이면 추가로 60분을 뺍니다.
+ *
+ * **시주 계산에서만 호출합니다.** 년주, 월주, 일주는 원본 시각을 씁니다.
  * 태어난 시간을 모르는 경우와 기업 설립일은 이 단계를 건너뜁니다.
  */
-export function adjustBirthTime(date: Date, hasBirthTime: boolean): Date {
-  if (!hasBirthTime) return new Date(date)
-
+export function applyTimeCorrection(date: Date): Date {
   let minutes = LONGITUDE_OFFSET_MINUTES
   if (isInDST(date)) minutes += 60
 
@@ -181,7 +194,10 @@ export function getIpchun(year: number): Date | null {
 
 /**
  * 입춘 시각 이전이면 전년도로 처리합니다 (PRD 4.3.2 — 시각 단위까지 비교).
- * 예: 2026년 입춘이 02-04 05:46이면 05:45 출생은 2025년으로 계산합니다.
+ *
+ * 넘겨받는 date는 **보정하지 않은 원본 시각**이어야 합니다.
+ * 예: 2026년 입춘은 02-04 05:02이므로 05:00 출생은 2025년(을사),
+ *     05:05 출생은 2026년(병오)입니다.
  */
 export function getSajuYear(date: Date): number {
   const y = date.getFullYear()
@@ -274,14 +290,19 @@ export function getHourBranchIndex(date: Date): number {
 /**
  * 시주를 계산합니다.
  *
+ * 시지는 보정된 시각(corrected)으로 정하고, 시간(천간)은 **원본 날짜의
+ * 일간**(dayStemIndex)으로 정합니다.
+ *
  * PRD 4.3.1 자시 처리 — 23:00-23:59 출생은 당일 유지로 통일합니다(조자시 방식).
  * 야자시 방식(다음 날 일간으로 시간을 뽑는 방식)과 결과가 다르지만
  * 서비스 안에서 일관성만 지키면 되므로 조자시로 고정합니다.
- * 따라서 아래 dayStemIndex는 보정 후 그날의 일간을 그대로 사용합니다.
+ *
+ * 일간을 인자로 받는 이유가 여기 있습니다. 보정 때문에 보정된 시각이
+ * 전날로 넘어가는 경우(예: 00:29 출생 → 보정 후 전날 23:59)가 생기는데,
+ * 그때도 일주는 원본 날짜를 따라야 하기 때문입니다.
  */
-export function getHourPillar(date: Date): Pillar {
-  const branchIndex = getHourBranchIndex(date)
-  const dayStemIndex = getDayStemIndex(date)
+export function getHourPillar(corrected: Date, dayStemIndex: number): Pillar {
+  const branchIndex = getHourBranchIndex(corrected)
   const start = HOUR_STEM_START[dayStemIndex % 5]
   const stemIndex = (start + branchIndex) % 10
   return makePillar(stemIndex, branchIndex)
@@ -310,15 +331,19 @@ export function calculateSaju(input: CalculateInput): Saju {
     input.hasBirthTime ? input.birthTime ?? '00:00' : null
   )
 
-  const adjusted = adjustBirthTime(raw, input.hasBirthTime)
+  // 절기 판정 — 보정하지 않은 원본 시각으로 비교합니다.
+  // 절기 테이블이 KST 기준이라 보정된 시각을 맞대면 기준이 섞입니다.
+  const year = getYearPillar(raw)
+  const month = getMonthPillar(raw)
 
-  const year = getYearPillar(adjusted)
-  const month = getMonthPillar(adjusted)
-  const day = getDayPillar(adjusted)
-  const hour = input.hasBirthTime ? getHourPillar(adjusted) : null
-
-  const dayPillarIndex = getDayPillarIndex(adjusted)
+  // 일주 — 원본 날짜 기준
+  const day = getDayPillar(raw)
+  const dayPillarIndex = getDayPillarIndex(raw)
   const dayStemIndex = dayPillarIndex % 10
+
+  // 시주 — 보정 시각으로 시지를 정하고, 시간은 원본 날짜의 일간으로 정합니다
+  const corrected = input.hasBirthTime ? applyTimeCorrection(raw) : null
+  const hour = corrected ? getHourPillar(corrected, dayStemIndex) : null
 
   return {
     year,
@@ -330,7 +355,8 @@ export function calculateSaju(input: CalculateInput): Saju {
     dayStemName: DAY_STEM_NAMES[dayStemIndex],
     dayStemElement: STEM_ELEMENT[dayStemIndex],
     dayPillarIndex,
-    adjusted,
+    raw,
+    corrected,
   }
 }
 

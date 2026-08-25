@@ -1,22 +1,19 @@
 /**
- * 만세력 계산 검증 (PRD 17장)
+ * 만세력 계산 검증
  *
- * 아래 EXPECTED 값은 계산의 두 입력을 공개 자료와 대조해 확인한 뒤 고정한
- * 기준값입니다.
+ * 아래 EXPECTED는 회귀 고정값입니다. 계산 로직을 건드려 값이 틀어지면
+ * 이 테스트가 잡아냅니다.
+ *
+ * 근거가 된 검증은 두 가지입니다.
  *
  *   1. 절기 시각 — 2024 / 2025 / 2026년 절입 12개씩 총 36개가
  *      공표 절기표와 분 단위까지 전부 일치합니다.
- *   2. 일주 기준일 — PRD 4.1.2가 준 1900-01-01 갑술 기준으로 계산한
- *      1969-01-25가 경자일, 1969-02-22가 무진일로 나오며,
- *      두 날짜 모두 공개된 1969년 간지 목록과 일치합니다.
+ *   2. 일주 기준일 — 1900-01-01 갑술 기준으로 계산한 1969-01-25가 경자일,
+ *      1969-02-22가 무진일로 나오며, 두 날짜 모두 공개된 1969년 간지 목록과
+ *      일치합니다.
  *
- * 따라서 이 값들은 "지금 동작을 그대로 박제한 것"이 아니라 외부 자료로
- * 검증된 입력에서 나온 결과입니다. 계산 로직을 건드렸을 때 값이 틀어지면
- * 이 테스트가 잡아냅니다.
- *
- * 다만 명리 해석 관점의 최종 확인은 받지 않았습니다. 전문가 검토에서
- * 다른 값이 나오면 이 표를 고치시면 됩니다.
- * 사례별 상세는 test/saju-output.md 에 있습니다.
+ * 규칙이 의도대로 동작하는지(보정 적용 범위, 자시 경계, 날짜 넘어감)는
+ * test/saju-output.test.ts 가 사례별 O/X로 판정합니다.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -26,7 +23,7 @@ import {
   calculateSaju,
   getHourBranchIndex,
   parseLocalDateTime,
-  adjustBirthTime,
+  applyTimeCorrection,
 } from './calculate'
 import { getElementProfile } from './elements'
 import { attachParticle, render } from './particle'
@@ -50,18 +47,18 @@ type Expected = {
 
 const EXPECTED: Record<number, Expected> = {
   1: { year: '을사', month: '기축', day: '무신', hour: '무오', strong: '토', weak: '수' },
-  2: { year: '병오', month: '경인', day: '기유', hour: '정묘', strong: '목', weak: '수' },
-  3: { year: '병오', month: '경인', day: '기유', hour: '정묘', strong: '목', weak: '수' },
-  4: { year: '을사', month: '기축', day: '기유', hour: '정묘', strong: '토', weak: '수' },
-  5: { year: '병오', month: '경인', day: '기유', hour: '정묘', strong: '목', weak: '수' },
-  6: { year: '을해', month: '임오', day: '정축', hour: '신해', strong: '화', weak: '금' },
-  7: { year: '을해', month: '임오', day: '정축', hour: '신해', strong: '화', weak: '금' },
-  8: { year: '무진', month: '무오', day: '신축', hour: '을미', strong: '토', weak: '수' },
+  2: { year: '을사', month: '기축', day: '기유', hour: '병인', strong: '토', weak: '수' },
+  3: { year: '병오', month: '경인', day: '기유', hour: '병인', strong: '목', weak: '수' },
+  4: { year: '을해', month: '임오', day: '정축', hour: '신해', strong: '화', weak: '금' },
+  5: { year: '을해', month: '임오', day: '정축', hour: '경자', strong: '화', weak: '금' },
+  6: { year: '을해', month: '임오', day: '무인', hour: '임자', strong: '수', weak: '금' },
+  7: { year: '무진', month: '무오', day: '신축', hour: '을미', strong: '토', weak: '수' },
+  8: { year: '경오', month: '신사', day: '경진', hour: '계미', strong: '금', weak: '목' },
   9: { year: '경오', month: '신사', day: '경진', hour: null, strong: '금', weak: '목' },
   10: { year: '무신', month: '을축', day: '무자', hour: null, strong: '토', weak: '화' },
 }
 
-describe('PRD 17장 검증 사례 10건', () => {
+describe('검증 사례 10건 (회귀 고정)', () => {
   for (const c of VERIFICATION_CASES) {
     describe(`${c.id}. ${c.label}`, () => {
       if (c.isCompany) {
@@ -135,32 +132,32 @@ describe('PRD 17장 검증 사례 10건', () => {
 
 /* ── 기대값 없이도 지금 검증할 수 있는 항목 ── */
 
-describe('시간 보정 (PRD 4.2 0단계)', () => {
+describe('시간 보정 (시주 전용)', () => {
   it('평상시에는 30분을 뺀다', () => {
-    const raw = parseLocalDateTime('1995-06-15', '14:30')
-    const adj = adjustBirthTime(raw, true)
+    const adj = applyTimeCorrection(parseLocalDateTime('1995-06-15', '14:30'))
     expect(adj.getHours()).toBe(14)
     expect(adj.getMinutes()).toBe(0)
   })
 
   it('서머타임 기간에는 90분을 뺀다', () => {
-    const raw = parseLocalDateTime('1988-06-15', '14:30')
-    const adj = adjustBirthTime(raw, true)
+    const adj = applyTimeCorrection(parseLocalDateTime('1988-06-15', '14:30'))
     expect(adj.getHours()).toBe(13)
     expect(adj.getMinutes()).toBe(0)
   })
 
   it('서머타임 종료 다음 날은 30분만 뺀다', () => {
-    const raw = parseLocalDateTime('1988-10-10', '14:30')
-    const adj = adjustBirthTime(raw, true)
+    const adj = applyTimeCorrection(parseLocalDateTime('1988-10-10', '14:30'))
     expect(adj.getHours()).toBe(14)
     expect(adj.getMinutes()).toBe(0)
   })
 
-  it('태어난 시간을 모르면 보정하지 않는다 (PRD 4.3.3)', () => {
-    const raw = parseLocalDateTime('1988-06-15', null)
-    const adj = adjustBirthTime(raw, false)
-    expect(adj.getTime()).toBe(raw.getTime())
+  it('태어난 시간을 모르면 보정 결과가 null이다 (PRD 4.3.3)', () => {
+    const saju = calculateSaju({
+      birthDate: '1988-06-15',
+      birthTime: null,
+      hasBirthTime: false,
+    })
+    expect(saju.corrected).toBeNull()
   })
 })
 
