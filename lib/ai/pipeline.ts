@@ -12,7 +12,8 @@
 import { buildFreeResult, type UserInput } from '../content/assemble'
 import { getCompatibility, type CompatibilityResult } from '../saju/compatibility'
 import { getReportDdayRange } from '../saju/fortune'
-import { generateReport, type GenerateResult } from './generate'
+import { generateReport } from './generate'
+import type { GenerateResult } from './provider'
 import { buildMaterial } from './prompt'
 import {
   applyMissingFoundedDate,
@@ -20,12 +21,7 @@ import {
   toReportType,
   type ReportSpec,
 } from './spec'
-import {
-  SEARCH_QUERIES,
-  extractFoundedDate,
-  search,
-  type SearchContext,
-} from './search'
+import { SEARCH_QUERIES, extractFoundedDate, search } from './search'
 
 export interface PipelineInput {
   userInput: UserInput
@@ -38,8 +34,10 @@ export interface PipelineOutput {
   generated: GenerateResult
   compatibility: CompatibilityResult | null
   foundedDate: string | null
-  /** 검색 로그 기록용 */
+  /** 검색 로그 기록용 (PRD 22.14) */
   searchLogs: { queryType: 'company' | 'exam'; keyword: string; success: boolean }[]
+  /** 이번 생성에 쓴 검색 크레딧 합계 */
+  searchCredits: number
   reportType: '필기' | '면접'
   ddayRange: string
 }
@@ -58,6 +56,7 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
   let spec = getReportSpec(reportType, ddayRange, examYear)
 
   const searchLogs: PipelineOutput['searchLogs'] = []
+  let searchCredits = 0
   let compatibility: CompatibilityResult | null = null
   let foundedDate: string | null = null
   let companyInfo: string | undefined
@@ -73,6 +72,7 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
     foundedDate = founded.success ? extractFoundedDate(founded.context) : null
     companyInfo = info.success ? info.context : undefined
 
+    searchCredits += founded.credits + info.credits
     searchLogs.push(
       { queryType: 'company', keyword: input.companyName, success: founded.success },
       { queryType: 'company', keyword: input.companyName, success: info.success }
@@ -91,10 +91,9 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
     }
   } else if (reportType === '필기') {
     // 검색 1회 (PRD 8.10, 8.11)
-    const subjects: SearchContext = await search(
-      SEARCH_QUERIES.examSubjects(input.userInput.examName)
-    )
+    const subjects = await search(SEARCH_QUERIES.examSubjects(input.userInput.examName))
     examSubjects = subjects.success ? subjects.context : undefined
+    searchCredits += subjects.credits
     searchLogs.push({
       queryType: 'exam',
       keyword: input.userInput.examName,
@@ -120,6 +119,7 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
     compatibility,
     foundedDate,
     searchLogs,
+    searchCredits,
     reportType,
     ddayRange,
   }

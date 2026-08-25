@@ -1,14 +1,34 @@
 /**
- * 검색 API 호출 (PRD 8.10, 10.4, 10.5)
+ * 검색 인터페이스 (PRD 8.10, 10.4, 10.5)
  *
  * Claude API의 web_search 도구를 쓰지 않습니다. 검색 횟수와 토큰량 통제가
  * 어려워 원가가 예측되지 않기 때문입니다.
  *
- * 키가 없으면 목업 결과를 돌려주고 리포트 생성을 계속합니다.
+ * 나중에 DataForSEO 등으로 갈아끼울 수 있게 구현을 분리했습니다.
+ *
+ * ── 크레딧 절약 규칙 (반드시 지킬 것) ──
+ *
+ * 1. num은 10 이하로 고정합니다. 11 이상 요청하면 1회당 2크레딧이 나갑니다.
+ * 2. 결과는 상위 3개 스니펫만 씁니다.
+ * 3. 프롬프트에 넣기 전 6000자로 자릅니다.
+ *
+ * ── 호출 지점 ──
+ *
+ *   필기 리포트  1회
+ *   면접 리포트  2회
+ *   무료 구간    0회  절대 호출하지 않습니다
  */
 
-/** 프롬프트에 넣을 검색 문맥 상한 (PRD 8.10) */
-const CONTEXT_LIMIT = 6000
+/** PRD 8.10 — 프롬프트에 넣을 검색 문맥 상한 */
+export const CONTEXT_LIMIT = 6000
+
+/** 11 이상이면 1회당 2크레딧이 소모됩니다. 절대 올리지 마십시오 */
+export const MAX_RESULTS = 10
+
+/** 실제로 프롬프트에 넣는 스니펫 수 */
+export const SNIPPET_COUNT = 3
+
+export type SearchProviderName = 'serper'
 
 export interface SearchResult {
   title: string
@@ -22,112 +42,21 @@ export interface SearchContext {
   success: boolean
   /** 키가 없어 목업으로 돌려준 경우 */
   mock: boolean
+  /** 소모한 크레딧 추정치 (기록용) */
+  credits: number
 }
 
-const EMPTY: SearchContext = { context: '', success: false, mock: false }
-
-function getProvider(): { name: 'brave' | 'serper'; key: string } | null {
-  const brave = process.env.BRAVE_SEARCH_API_KEY
-  const serper = process.env.SERPER_API_KEY
-  const preferred = process.env.SEARCH_PROVIDER
-
-  if (preferred === 'serper' && serper) return { name: 'serper', key: serper }
-  if (preferred === 'brave' && brave) return { name: 'brave', key: brave }
-  if (brave) return { name: 'brave', key: brave }
-  if (serper) return { name: 'serper', key: serper }
-  return null
+export interface SearchProvider {
+  name: SearchProviderName
+  isConfigured(): boolean
+  search(query: string): Promise<SearchContext>
 }
 
-export function isSearchConfigured(): boolean {
-  return getProvider() !== null
-}
-
-/**
- * 검색 결과 상위 3개의 스니펫을 이어 붙여 돌려줍니다.
- *
- * TODO: 사용자 확인 필요
- * Brave Search 또는 Serper API 키를 발급받아 .env.local에 넣어야 실제로 검색합니다.
- * 키가 없으면 아래 목업이 나가고, 리포트는 "확인되지 않음"으로 처리됩니다.
- */
-export async function search(query: string): Promise<SearchContext> {
-  const provider = getProvider()
-
-  if (!provider) {
-    return { context: mockContext(query), success: false, mock: true }
-  }
-
-  try {
-    const results =
-      provider.name === 'brave'
-        ? await searchBrave(query, provider.key)
-        : await searchSerper(query, provider.key)
-
-    if (results.length === 0) return EMPTY
-
-    const context = results
-      .slice(0, 3)
-      .map((r) => r.snippet)
-      .join('\n')
-      .slice(0, CONTEXT_LIMIT)
-
-    return { context, success: context.length > 0, mock: false }
-  } catch {
-    return EMPTY
-  }
-}
-
-async function searchBrave(query: string, key: string): Promise<SearchResult[]> {
-  const url = new URL('https://api.search.brave.com/res/v1/web/search')
-  url.searchParams.set('q', query)
-  url.searchParams.set('count', '5')
-
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json', 'X-Subscription-Token': key },
-  })
-  if (!res.ok) return []
-
-  const json = (await res.json()) as {
-    web?: { results?: { title: string; description: string; url: string }[] }
-  }
-
-  return (json.web?.results ?? []).map((r) => ({
-    title: r.title,
-    snippet: r.description,
-    url: r.url,
-  }))
-}
-
-async function searchSerper(query: string, key: string): Promise<SearchResult[]> {
-  const res = await fetch('https://google.serper.dev/search', {
-    method: 'POST',
-    headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ q: query, gl: 'kr', hl: 'ko', num: 5 }),
-  })
-  if (!res.ok) return []
-
-  const json = (await res.json()) as {
-    organic?: { title: string; snippet: string; link: string }[]
-  }
-
-  return (json.organic ?? []).map((r) => ({
-    title: r.title,
-    snippet: r.snippet,
-    url: r.link,
-  }))
-}
-
-/**
- * 키가 없을 때 쓰는 목업.
- *
- * 일부러 사실을 담지 않습니다. AI가 이 문자열을 근거로 단정하면 안 되므로
- * "확인되지 않았다"는 내용만 넣습니다.
- */
-function mockContext(query: string): string {
-  return [
-    `[검색 미연동] "${query}"에 대한 외부 검색이 수행되지 않았습니다.`,
-    '이 섹션은 검색으로 확인된 사실이 없는 것으로 처리하시기 바랍니다.',
-    '구체적인 과목명, 설립일, 전형 방식을 추측해서 쓰지 마십시오.',
-  ].join('\n')
+export const EMPTY: SearchContext = {
+  context: '',
+  success: false,
+  mock: false,
+  credits: 0,
 }
 
 // ─── 검색어 (PRD 8.10) ───
@@ -139,6 +68,33 @@ export const SEARCH_QUERIES = {
 }
 
 /**
+ * 상위 3개 스니펫만 이어 붙이고 상한으로 자릅니다.
+ * 모든 provider가 이 함수를 거쳐 문맥을 만듭니다.
+ */
+export function buildContext(results: SearchResult[]): string {
+  return results
+    .slice(0, SNIPPET_COUNT)
+    .map((r) => r.snippet)
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, CONTEXT_LIMIT)
+}
+
+/**
+ * 키가 없을 때 쓰는 목업.
+ *
+ * 일부러 사실을 담지 않습니다. AI가 이 문자열을 근거로 단정하면 안 되므로
+ * "확인되지 않았다"는 내용만 넣습니다.
+ */
+export function mockContext(query: string): string {
+  return [
+    `[검색 미연동] "${query}"에 대한 외부 검색이 수행되지 않았습니다.`,
+    '이 섹션은 검색으로 확인된 사실이 없는 것으로 처리하시기 바랍니다.',
+    '구체적인 과목명, 설립일, 전형 방식을 추측해서 쓰지 마십시오.',
+  ].join('\n')
+}
+
+/**
  * 검색 결과에서 법인 설립일을 뽑습니다 (PRD 4.4, 10.5).
  * 확인되지 않으면 null을 돌려주고, 궁합 섹션은 대체 섹션으로 바뀝니다.
  * 추측 날짜로 계산하지 않습니다.
@@ -146,7 +102,6 @@ export const SEARCH_QUERIES = {
 export function extractFoundedDate(context: string): string | null {
   if (!context) return null
 
-  // 1969년 1월 13일 / 1969.01.13 / 1969-01-13 형태를 찾습니다
   const patterns = [
     /(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/,
     /(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})/,
@@ -169,4 +124,21 @@ export function extractFoundedDate(context: string): string | null {
   }
 
   return null
+}
+
+// ─── provider 선택 ───
+
+import { SerperProvider } from './search/serper'
+
+export function getSearchProvider(): SearchProvider {
+  // 지금은 Serper 하나뿐입니다. 늘어나면 여기서 분기합니다.
+  return new SerperProvider()
+}
+
+export function isSearchConfigured(): boolean {
+  return getSearchProvider().isConfigured()
+}
+
+export async function search(query: string): Promise<SearchContext> {
+  return getSearchProvider().search(query)
 }

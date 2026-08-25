@@ -7,7 +7,17 @@
 
 import { NextResponse, type NextRequest } from 'next/server'
 
+/**
+ * Vercel 서버리스 최대 실행 시간 (초).
+ *
+ * 리포트 생성 실측이 80-180초입니다. 기본값으로는 끝나기 전에 함수가 죽습니다.
+ * Vercel Hobby 플랜은 60초가 상한이라 이 값이 무시되고 실패합니다.
+ * 출시 전 Pro 플랜이 필요합니다.
+ */
+export const maxDuration = 300
+
 import { runPipeline } from '@/lib/ai/pipeline'
+import { logSearches } from '@/lib/ai/search-log'
 import { GenerateError } from '@/lib/ai/generate'
 import type { UserInput } from '@/lib/content/assemble'
 import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
@@ -147,6 +157,10 @@ export async function POST(req: NextRequest) {
         },
         status: 'completed',
         error_message: null,
+        // 실제 사용량을 남깁니다. Sonnet 5는 새 토크나이저를 쓰므로
+        // PRD 8.12의 원가 추정치는 하한으로 보고 여기 쌓인 값으로 검증합니다.
+        provider: out.generated.provider,
+        model: out.generated.model,
         input_tokens: out.generated.inputTokens,
         output_tokens: out.generated.outputTokens,
         generation_ms: out.generated.generationMs,
@@ -200,21 +214,4 @@ async function linkPayment(
   if (data) {
     await service.from('payments').update({ report_id: reportId }).eq('id', data.id)
   }
-}
-
-/** PRD 22.14 — 2차 확장 판단 근거로 검색 성공률을 남깁니다 */
-async function logSearches(
-  logs: { queryType: 'company' | 'exam'; keyword: string; success: boolean }[]
-) {
-  if (logs.length === 0) return
-  const service = createServiceClient()
-  if (!service) return
-
-  await service.from('search_logs').insert(
-    logs.map((l) => ({
-      query_type: l.queryType,
-      keyword: l.keyword,
-      success: l.success,
-    }))
-  )
 }
