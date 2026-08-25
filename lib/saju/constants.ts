@@ -160,8 +160,9 @@ export const BRANCH_TO_MONTH_ORDER: Record<number, number> = {
 }
 
 /**
- * PRD 4.2 0단계 — 서머타임 시행 기간
+ * PRD 4.2 4-1 — 서머타임 시행 기간
  * 이 기간 출생은 경도 보정 30분에 더해 60분을 뺍니다.
+ * 시주 계산에서만 적용합니다.
  */
 export const DST_PERIODS: [string, string][] = [
   ['1948-05-31', '1948-09-12'],
@@ -178,7 +179,7 @@ export const DST_PERIODS: [string, string][] = [
   ['1988-05-08', '1988-10-09'],
 ]
 
-/** PRD 4.2 0단계 — 동경 135도와 실제 경도(약 127.5도) 차이 보정 */
+/** PRD 4.2 4-1 — 동경 135도와 실제 경도(약 127.5도) 차이 보정. 시주 전용 */
 export const LONGITUDE_OFFSET_MINUTES = 30
 
 /** PRD 4.1.2 일주 기준일. 1900-01-01 = 갑술일 (60갑자 인덱스 10) */

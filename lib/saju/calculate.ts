@@ -13,7 +13,7 @@
  * 보정을 적용합니다. 그 결과 실질 자시 시작이 23:30이 되지만, 경도 보정을
  * 도입한 이상 시지에 반영하는 쪽이 일관됩니다. 의도한 동작입니다.
  *
- * 계산 순서
+ * 계산 순서 (PRD 4.2)
  *   1단계 년주 (입춘 경계, 원본 시각)
  *   2단계 월주 (절입 구간 + 년간 5패턴, 원본 시각)
  *   3단계 일주 (1900-01-01 갑술일 기준 경과일, 원본 날짜)
@@ -140,7 +140,7 @@ function parseTermTime(s: string): Date {
   return new Date(y, m - 1, d, hh, mm, 0, 0)
 }
 
-// ─── 0단계: 시간 보정 (PRD 4.2) ───
+// ─── 시간 보정 (PRD 4.2 4단계 4-1) ───
 
 function isInDST(date: Date): boolean {
   const key = toDateKey(date)
