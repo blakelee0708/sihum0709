@@ -54,7 +54,7 @@ export default async function OpengraphImage() {
             <span>시험 보는 날,</span>
             <span>내 기운은 어떨까?</span>
           </div>
-          <div style={{ fontSize: 34, color: '#4B7BF5', fontWeight: 700 }}>
+          <div style={{ fontSize: 34, color: '#4470DF', fontWeight: 700 }}>
             시험사주
           </div>
         </div>

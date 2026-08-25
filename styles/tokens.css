@@ -1,13 +1,29 @@
-/* PRD 21.2 색상 토큰 / 21.4 레이아웃 토큰 */
+/*
+ * PRD 21.2 색상 토큰 / 21.4 레이아웃 토큰
+ *
+ * ── 대비비 때문에 조정한 값이 있습니다 ──
+ *
+ * PRD 21.9가 본문 대비비 4.5:1을 요구하는데, PRD 21.2의 원래 값 중 넷이
+ * 기준에 미달했습니다. 색조는 그대로 두고 밝기만 낮춰 기준을 통과시켰습니다.
+ *
+ *   --text-sub    #7A8394 -> #656D7B   (3.33 -> 4.56)
+ *   --primary     #4B7BF5 -> #4470DF   (3.85 -> 4.54)
+ *   --score-mid   #4B7BF5 -> #4470DF   (primary와 같은 값 유지)
+ *   --score-high  #3DAF6E -> #3BA86A   (2.78 -> 3.00)
+ *   --score-low   #E5A03D -> #C38834   (2.23 -> 3.05)
+ *
+ * 브랜드 인상이 달라 보이면 위 원래 값으로 되돌리시면 됩니다.
+ * 오행 색상(--wood ~ --water)은 뱃지와 공유 이미지 전용이라 건드리지 않았습니다.
+ */
 
 :root {
   /* 브랜드 (화면 전체) */
   --bg: #E8F0FF;
   --surface: #FFFFFF;
-  --primary: #4B7BF5;
+  --primary: #4470DF;
   --button: #0F1729;
   --text: #1A1D26;
-  --text-sub: #7A8394;
+  --text-sub: #656D7B;
   --border: #E3E8F2;
 
   /* 오행 (뱃지, 공유 이미지 전용) */
@@ -18,9 +34,9 @@
   --water: #3D5AE5;
 
   /* 상태 */
-  --score-high: #3DAF6E;
-  --score-mid: #4B7BF5;
-  --score-low: #E5A03D;
+  --score-high: #3BA86A;
+  --score-mid: #4470DF;
+  --score-low: #C38834;
 
   /* 모서리 (21.4) */
   --radius-card: 24px;
