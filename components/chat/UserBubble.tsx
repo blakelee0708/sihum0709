@@ -5,6 +5,9 @@
  *
  * 오른쪽 정렬, 최대 폭 220px, 오른쪽 위만 각진 모서리.
  * 탭하면 그 단계로 돌아갑니다 (PRD 14.6 답변 수정).
+ *
+ * transformOrigin이 오른쪽 아래입니다. 내가 보낸 말이므로 화면 오른쪽
+ * 끝에서 부풀어 오릅니다 (FIX_3 [8]-2).
  */
 
 import { motion } from 'framer-motion'
@@ -19,7 +22,7 @@ interface Props {
 
 export default function UserBubble({ text, onEdit, instant = false }: Props) {
   const anim = instant
-    ? { initial: false as const, animate: { opacity: 1, y: 0 } }
+    ? { initial: false as const, animate: { opacity: 1, scale: 1, x: 0, y: 0 } }
     : answerMotion
 
   return (
@@ -34,6 +37,7 @@ export default function UserBubble({ text, onEdit, instant = false }: Props) {
         style={{
           background: 'var(--primary)',
           borderRadius: '12px 2px 12px 12px',
+          transformOrigin: 'right bottom',
         }}
       >
         {text}

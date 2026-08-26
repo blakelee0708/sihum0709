@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
+import { useReducedMotion } from 'framer-motion'
 
 import {
   SESSION_KEY,
@@ -24,7 +25,7 @@ import {
   type Step,
   type StepId,
 } from '@/lib/content/chat-flow'
-import { NEXT_QUESTION_DELAY_MS, OPTION_DELAY_MS } from '@/lib/motion'
+import { NEXT_QUESTION_DELAY_MS, OPTION_DELAY_MS, TYPING_MS } from '@/lib/motion'
 import { track } from '@/lib/analytics'
 import type { ExamType, CompanyScale, WorkType } from '@/lib/saju/constants'
 import type { ExamPeriod } from '@/lib/content/assemble'
@@ -37,6 +38,7 @@ import DateFieldWidget from './DateFieldWidget'
 import StartTimeWidget from './StartTimeWidget'
 import BirthTimeWidget from './BirthTimeWidget'
 import FinishButton from './FinishButton'
+import TypingBubble from './TypingBubble'
 
 interface Props {
   /** 대화가 끝나고 [결과 보기]를 눌렀을 때 */
@@ -47,6 +49,8 @@ interface Props {
 export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: Props) {
   const router = useRouter()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const shouldReduceMotion = useReducedMotion()
 
   const [answers, setAnswers] = useState<Answers>({})
   const [restored, setRestored] = useState(false)
@@ -56,6 +60,8 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
   const [showWidget, setShowWidget] = useState(false)
   /** 시험명 단계에서 직접 입력을 고른 상태 */
   const [freeInput, setFreeInput] = useState(false)
+  /** 첫 인사 전에만 뜨는 타이핑 표시 (FIX_3 [8]-4) */
+  const [typing, setTyping] = useState(false)
 
   const steps = getSteps(answers)
   const current = steps[steps.length - 1]
@@ -63,6 +69,7 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
 
   // 진입 시 복원 (PRD 14.8)
   useEffect(() => {
+    let fresh = true
     try {
       const saved = sessionStorage.getItem(SESSION_KEY)
       if (saved) {
@@ -70,14 +77,27 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
         if (parsed.answers) {
           setAnswers(parsed.answers)
           setInstant(true)
+          fresh = false
         }
       }
     } catch {
       // 저장된 값이 깨졌으면 처음부터 시작합니다
     }
     setRestored(true)
-    setShowQuestion(true)
-    setShowWidget(true)
+
+    // 이어보기로 들어온 사람에게는 타이핑을 보여주지 않습니다.
+    // 이미 나눈 대화가 위에 쌓여 있는데 다시 말을 거는 꼴이 됩니다.
+    if (!fresh) {
+      setShowQuestion(true)
+      setShowWidget(true)
+      return
+    }
+
+    // 첫 인사가 뜨기까지의 320ms를 타이핑 표시로 채웁니다. 말풍선을
+    // 띄우는 것은 아래 "새 질문 등장 타이밍" 효과가 맡습니다.
+    setTyping(true)
+    const t = setTimeout(() => setTyping(false), TYPING_MS)
+    return () => clearTimeout(t)
   }, [])
 
   // 답변마다 저장 (개인정보이므로 localStorage 대신 세션 범위)
@@ -112,20 +132,40 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
     }
   }, [stepCount, restored, instant])
 
-  const scrollToBottom = useCallback(() => {
-    const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [])
+  /**
+   * 새 말풍선이 뜰 때마다 바닥으로 내립니다 (FIX_3 [8]-5).
+   *
+   * scrollTop = scrollHeight로 순간이동시키면 방금 뜬 말풍선이 어디서
+   * 왔는지 안 보입니다. 부드럽게 따라가면 대화가 이어지는 것으로 읽힙니다.
+   *
+   * 키보드가 올라올 때는 즉시 내립니다. 그때는 입력창을 가리지 않는 것이
+   * 먼저고, 부드럽게 움직이는 동안 손가락이 이미 다른 곳을 누릅니다.
+   */
+  const scrollToBottom = useCallback(
+    (smooth = true) => {
+      const target = bottomRef.current
+      if (target) {
+        target.scrollIntoView({
+          behavior: smooth && !shouldReduceMotion ? 'smooth' : 'auto',
+          block: 'end',
+        })
+        return
+      }
+      const el = scrollRef.current
+      if (el) el.scrollTop = el.scrollHeight
+    },
+    [shouldReduceMotion]
+  )
 
   useEffect(() => {
     scrollToBottom()
-  }, [stepCount, showQuestion, showWidget, scrollToBottom])
+  }, [stepCount, showQuestion, showWidget, typing, scrollToBottom])
 
   // 키보드가 올라오면 입력창이 가려지므로 보정합니다 (PRD 14.6)
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
-    const handler = () => scrollToBottom()
+    const handler = () => scrollToBottom(false)
     vv.addEventListener('resize', handler)
     return () => vv.removeEventListener('resize', handler)
   }, [scrollToBottom])
@@ -202,6 +242,8 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
             )
           })}
 
+          {typing && <TypingBubble />}
+
           {current && showQuestion && (
             <BotBubble lines={current.question} instant={instant} />
           )}
@@ -221,6 +263,9 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
               />
             </div>
           )}
+
+          {/* scrollIntoView가 붙잡을 자리. 높이 0이라 여백을 만들지 않습니다 */}
+          <div ref={bottomRef} />
         </div>
       </div>
     </div>

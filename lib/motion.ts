@@ -20,20 +20,60 @@ export const EASE = [0.22, 1, 0.36, 1] as const
  */
 export const BUBBLE_STAGGER = 0.32
 
+/**
+ * 말풍선 스프링 (FIX_3 [8]).
+ *
+ * y 8px 페이드에서 scale 0.3 스프링으로 바꿨습니다. 전에는 말이 그냥
+ * 나타났습니다. 카카오톡처럼 프로필 쪽에서 튀어나오면 누가 말하는지가
+ * 움직임만으로 읽힙니다.
+ *
+ * transform-origin이 핵심입니다. 합격이 말풍선은 왼쪽 아래, 사용자
+ * 말풍선은 오른쪽 아래를 기준으로 커져야 그쪽에서 나온 것으로 보입니다.
+ * 기준점은 각 컴포넌트가 CSS로 지정합니다.
+ *
+ * mass 0.8은 기본값(1)보다 가볍습니다. 말풍선이 무겁게 출렁이면
+ * 9단계를 거치는 동안 답답해집니다.
+ */
+export const BUBBLE_SPRING = {
+  type: 'spring',
+  stiffness: 400,
+  damping: 22,
+  mass: 0.8,
+} as const
+
 export function bubbleMotion(index = 0) {
   return {
-    initial: { opacity: 0, y: 8 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.26, delay: index * BUBBLE_STAGGER, ease: EASE },
+    initial: { opacity: 0, scale: 0.3, x: -20, y: 8 },
+    animate: { opacity: 1, scale: 1, x: 0, y: 0 },
+    transition: { ...BUBBLE_SPRING, delay: index * BUBBLE_STAGGER },
   }
 }
 
-/** 사용자 답변 말풍선 */
+/** 사용자 답변 말풍선. 오른쪽에서 나옵니다 */
 export const answerMotion = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.26, ease: EASE },
+  initial: { opacity: 0, scale: 0.3, x: 20, y: 8 },
+  animate: { opacity: 1, scale: 1, x: 0, y: 0 },
+  transition: BUBBLE_SPRING,
 }
+
+/**
+ * 프로필 아이콘 반응 (FIX_3 [8]-3).
+ *
+ * 말풍선보다 프로필이 먼저 반응하면 "합격이가 말을 시작한다"로 읽힙니다.
+ * 8%는 알아채되 자리를 밀지 않는 크기입니다.
+ */
+export const avatarPop: { animate: TargetAndTransition; transition: Transition } = {
+  animate: { scale: [1, 1.08, 1] },
+  transition: { duration: 0.3 },
+}
+
+/**
+ * 타이핑 인디케이터 (FIX_3 [8]-4).
+ *
+ * 첫 인사에만 넣습니다. 매 질문마다 0.6초씩 넣으면 9단계에서 5.4초가
+ * 그냥 늘어납니다. 0.3초는 "말을 고르는 중"만 전달하고 끝나는 길이입니다.
+ */
+export const TYPING_MS = 300
 
 /**
  * 선택지 순차 등장.
