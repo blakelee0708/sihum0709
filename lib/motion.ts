@@ -1,8 +1,22 @@
 /**
- * 모션 값 (PRD 14.6)
+ * 모션 값 (PRD 14.6, PRD 21.12, FIX_3 [6] ~ [11])
  *
- * 0.26초가 상한입니다. 더 느리면 9단계를 거치는 동안 기다리는 느낌이 누적됩니다.
- * 값을 임의로 바꾸지 마십시오.
+ * 대화 화면은 0.26초가 상한입니다. 더 느리면 9단계를 거치는 동안
+ * 기다리는 느낌이 누적됩니다. 값을 임의로 바꾸지 마십시오.
+ *
+ * ── 이 파일에 훅을 두지 않는 이유 ──
+ *
+ * 서버 컴포넌트도 여기서 값을 읽습니다(ResultCard의 진입 지연 등).
+ * framer-motion을 런타임으로 import하면 그 컴포넌트들이 깨집니다.
+ * 타입만 import하고, 훅이 필요한 것은 components/motion/motion-safe.ts에
+ * 둡니다.
+ *
+ * ── prefers-reduced-motion (FIX_3 [11]) ──
+ *
+ * 여기 있는 값은 "켜져 있을 때"의 값입니다. 끄는 판단은 각 컴포넌트가
+ * useReducedMotion으로 합니다. 끌 때는 값을 줄이는 것이 아니라
+ * initial 자체를 false로 두어 최종 상태를 바로 그립니다. opacity 0이나
+ * scale 0.3에서 멈춰 내용이 안 보이는 사고를 막기 위해서입니다.
  */
 
 import type { TargetAndTransition, Transition } from 'framer-motion'

@@ -14,7 +14,8 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Clock } from 'lucide-react'
 
-import { haptic, optionMotion } from '@/lib/motion'
+import { haptic } from '@/lib/motion'
+import { useOptionMotion } from '@/components/motion/motion-safe'
 import { useTap } from '@/components/motion/Pressable'
 
 /** 'HH:mm' */
@@ -38,6 +39,7 @@ export default function StartTimeWidget({ skipLabel, onSubmit, onSkip }: Props) 
   // 밝은 버튼은 배경까지 진해지고, 어두운 확인 버튼은 크기만 줄어듭니다
   const tap = useTap('surface')
   const solidTap = useTap()
+  const optionMotion = useOptionMotion()
 
   if (manual) {
     return (

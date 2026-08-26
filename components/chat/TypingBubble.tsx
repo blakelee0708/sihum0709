@@ -11,12 +11,15 @@
  */
 
 import Image from 'next/image'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 
 import { CHARACTER_NAME, CHARACTER_PROFILE } from '@/lib/content/characters'
-import { bubbleMotion } from '@/lib/motion'
+import { useBubbleMotion } from '@/components/motion/motion-safe'
 
 export default function TypingBubble() {
+  const bubbleMotion = useBubbleMotion()
+  const shouldReduceMotion = useReducedMotion()
+
   return (
     <div className="flex items-start gap-2" aria-hidden>
       <Image
@@ -43,7 +46,7 @@ export default function TypingBubble() {
             key={i}
             className="block h-1.5 w-1.5 rounded-full"
             style={{ background: 'var(--text-sub)' }}
-            animate={{ opacity: [0.3, 1, 0.3] }}
+            animate={shouldReduceMotion ? undefined : { opacity: [0.3, 1, 0.3] }}
             transition={{
               duration: 0.9,
               repeat: Infinity,

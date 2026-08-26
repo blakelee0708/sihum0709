@@ -16,7 +16,8 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 
 import DotsLoader from '@/components/motion/DotsLoader'
-import { MIN_LOADING_MS, optionMotion } from '@/lib/motion'
+import { MIN_LOADING_MS } from '@/lib/motion'
+import { useOptionMotion } from '@/components/motion/motion-safe'
 import { useTap } from '@/components/motion/Pressable'
 
 interface Props {
@@ -27,6 +28,7 @@ interface Props {
 export default function FinishButton({ label, onFinish }: Props) {
   const [loading, setLoading] = useState(false)
   const tap = useTap()
+  const optionMotion = useOptionMotion()
 
   async function handleClick() {
     if (loading) return

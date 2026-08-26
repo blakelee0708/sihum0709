@@ -21,7 +21,8 @@
 import { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 
-import { haptic, optionMotion } from '@/lib/motion'
+import { haptic } from '@/lib/motion'
+import { useOptionMotion } from '@/components/motion/motion-safe'
 import { useTap } from '@/components/motion/Pressable'
 
 interface Period {
@@ -62,6 +63,7 @@ export default function BirthTimeWidget({ onSubmit }: Props) {
   const surfaceTap = useTap('surface')
   const solidTap = useTap()
   const shouldReduceMotion = useReducedMotion()
+  const optionMotion = useOptionMotion()
 
   const minuteValue = minute === '' ? 0 : Number(minute)
   const minuteValid = minuteValue >= 0 && minuteValue <= 59

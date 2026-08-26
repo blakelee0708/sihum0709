@@ -22,7 +22,7 @@
 import { forwardRef, useRef, useState, type ChangeEvent, type RefObject } from 'react'
 import { motion } from 'framer-motion'
 
-import { optionMotion } from '@/lib/motion'
+import { useOptionMotion } from '@/components/motion/motion-safe'
 import { useTap } from '@/components/motion/Pressable'
 import { lunarToSolar } from '@/lib/saju/lunar'
 
@@ -85,6 +85,7 @@ export default function DateFieldWidget({ mode, lunar, onSubmit }: Props) {
   const dayRef = useRef<HTMLInputElement>(null)
   const tap = useTap('surface')
   const solidTap = useTap()
+  const optionMotion = useOptionMotion()
 
   const filled = year.length === 4 && month.length >= 1 && day.length >= 1
 

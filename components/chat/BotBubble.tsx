@@ -31,7 +31,7 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 
 import { CHARACTER_NAME, CHARACTER_PROFILE } from '@/lib/content/characters'
-import { avatarPop, bubbleMotion } from '@/lib/motion'
+import { useAvatarPop, useBubbleMotion } from '@/components/motion/motion-safe'
 
 interface Props {
   lines: string[]
@@ -40,12 +40,16 @@ interface Props {
 }
 
 export default function BotBubble({ lines, instant = false }: Props) {
+  const bubbleMotion = useBubbleMotion()
+  // 움직임을 줄여달라고 했으면 undefined가 옵니다 (FIX_3 [11])
+  const avatarPop = useAvatarPop()
+
   return (
     <div className="flex items-start gap-2">
       <motion.div
         className="shrink-0"
-        animate={instant ? undefined : avatarPop.animate}
-        transition={instant ? undefined : avatarPop.transition}
+        animate={instant ? undefined : avatarPop?.animate}
+        transition={instant ? undefined : avatarPop?.transition}
       >
         <Image
           src={CHARACTER_PROFILE}

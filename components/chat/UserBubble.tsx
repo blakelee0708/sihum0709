@@ -12,7 +12,7 @@
 
 import { motion } from 'framer-motion'
 
-import { answerMotion } from '@/lib/motion'
+import { useAnswerMotion } from '@/components/motion/motion-safe'
 
 interface Props {
   text: string
@@ -21,6 +21,7 @@ interface Props {
 }
 
 export default function UserBubble({ text, onEdit, instant = false }: Props) {
+  const answerMotion = useAnswerMotion()
   const anim = instant
     ? { initial: false as const, animate: { opacity: 1, scale: 1, x: 0, y: 0 } }
     : answerMotion

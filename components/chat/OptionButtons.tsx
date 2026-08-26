@@ -11,7 +11,8 @@
 import { motion } from 'framer-motion'
 import { Calendar, Clock, Keyboard } from 'lucide-react'
 
-import { haptic, optionMotion } from '@/lib/motion'
+import { haptic } from '@/lib/motion'
+import { useOptionMotion } from '@/components/motion/motion-safe'
 import { useTap } from '@/components/motion/Pressable'
 import type { StepOption } from '@/lib/content/chat-flow'
 
@@ -42,6 +43,7 @@ export default function OptionButtons({
   const FreeIcon = ICONS[freeInputIcon]
   // 밝은 버튼이라 배경까지 진해지게 합니다 (FIX_3 [7]-1)
   const tap = useTap('surface')
+  const optionMotion = useOptionMotion()
 
   return (
     <div className="space-y-2">

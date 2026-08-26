@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 
-import { optionMotion } from '@/lib/motion'
+import { useOptionMotion } from '@/components/motion/motion-safe'
 import { useTap } from '@/components/motion/Pressable'
 
 interface Props {
@@ -30,6 +30,7 @@ export default function TextInputWidget({
   const [value, setValue] = useState('')
   const trimmed = value.trim()
   const tap = useTap()
+  const optionMotion = useOptionMotion()
 
   return (
     <form

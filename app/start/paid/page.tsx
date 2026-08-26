@@ -20,7 +20,8 @@ import TextInputWidget from '@/components/chat/TextInputWidget'
 import OptionButtons from '@/components/chat/OptionButtons'
 import { PAID_SCRIPTS } from '@/lib/content/chat-scripts'
 import { PAID_SESSION_KEY, SESSION_KEY, type Answers } from '@/lib/content/chat-flow'
-import { NEXT_QUESTION_DELAY_MS, OPTION_DELAY_MS, optionMotion } from '@/lib/motion'
+import { NEXT_QUESTION_DELAY_MS, OPTION_DELAY_MS } from '@/lib/motion'
+import { useOptionMotion } from '@/components/motion/motion-safe'
 
 type Step = 'companyName' | 'jobConfirm' | 'jobInput' | 'done'
 
@@ -35,6 +36,7 @@ function PaidChat() {
   const [jobTitle, setJobTitle] = useState<string | null>(null)
   const [step, setStep] = useState<Step>('companyName')
   const [showWidget, setShowWidget] = useState(false)
+  const optionMotion = useOptionMotion()
 
   // 무료 단계 답변을 읽어 직무명 입력 여부를 판단합니다
   useEffect(() => {
