@@ -122,18 +122,100 @@ RUN_REPORT_SAMPLE=1 npx vitest run test/report-output.test.ts
 검증 20(total_chars가 reports에 기록되는지)은 마이그레이션 004가
 적용되기 전이라 확인하지 못했습니다. 코드는 기록하고 있습니다.
 
+### 해결됨 — 개발 서버에서 /result가 멈추던 문제
+
+**앱 코드 문제가 아니었습니다. 이 작업 환경의 브라우저 창이 원인입니다.**
+
+#### 무엇이 문제였나
+
+React는 나중에 도착하는 Suspense 경계를 화면에 꽂을 때 `requestAnimationFrame`을
+씁니다. 서버가 내려보내는 스크립트가 이렇게 생겼습니다.
+
+```js
+$RC = function (a, b) {
+  ...
+  $RB.push(a, b)
+  requestAnimationFrame($RV.bind(null, $RB))   // ← 여기
+}
+```
+
+작업에 쓰는 브라우저 창은 화면을 그리지 않는 상태(compositing 없음)라
+`requestAnimationFrame` 콜백이 아예 실행되지 않습니다. 직접 재봤습니다.
+
+```
+document.visibilityState  visible
+requestAnimationFrame     1.5초 동안 실행 안 됨
+setTimeout                정상
+$RB (대기 중인 경계)       3개가 쌓인 채로 멈춤
+```
+
+그래서 `loading.tsx` 폴백이 그대로 남고 본문은 `<div hidden>` 안에 갇힙니다.
+콘솔에 에러가 없던 것도 이 때문입니다. 무한 루프가 아니라 예약된 콜백이
+불리지 않은 것뿐이었습니다.
+
+콘솔에서 `$RV($RB)`를 직접 호출하니 즉시 본문이 나왔고, 이어서 경계의
+`_reactRetry()`를 부르니 hydration까지 끝나 `/result`가 완전히 렌더됐습니다.
+
+#### 어떻게 좁혔나
+
+지시받은 순서대로 하나씩 지웠습니다.
+
+| 확인한 것 | 결과 |
+|---|---|
+| 콘솔 · 터미널 에러 | 없음. 무한 루프도 아님 |
+| React Strict Mode 끄기 | 그대로 멈춤 → 이중 마운트 문제 아님 (바로 다시 켰습니다) |
+| sessionStorage 접근 위치 | 이미 useEffect 안에 있음 |
+| useState / useEffect 의존성 | 상태가 같은 effect를 다시 부르는 구조 없음 |
+| React 18 → 19 | 그대로 멈춤 → 버전 문제 아님 (되돌렸습니다) |
+| 미들웨어 제거 | 그대로 멈춤 |
+| 최소 재현 페이지 | **12줄짜리 페이지로도 재현됨** → 앱 코드 무관 |
+
+최소 재현이 결정적이었습니다. 아래 네 가지를 만들어 비교했습니다.
+
+```
+async 페이지 + await searchParams        멈춤
+async 페이지 + await (느린 프로미스)      멈춤
+async 페이지 + await 없음                정상
+Suspense를 앱이 직접 걸고 안쪽만 느리게    바깥은 나오고 안쪽만 멈춤
+```
+
+공통점은 하나입니다. **React가 경계를 나중에 꽂는 상황이면 전부 멈춥니다.**
+`loading.tsx`를 지우면 경계 자체가 안 생기므로 멈추지 않습니다. 그것이
+`loading.tsx`가 원인처럼 보였던 이유이고, 실제 원인은 아닙니다.
+
+#### 프로덕션은 왜 됐나
+
+프로덕션에서는 경계를 나중에 꽂지 않았습니다. HTML을 받아 보면 경계 표시가
+`<!--$-->`(완료)이고 `$RC` 호출 자체가 없습니다. await가 빨리 끝나 React가
+기다렸다가 한 번에 내려보냅니다. rAF를 쓸 일이 없으니 문제가 드러나지
+않습니다. 1.5초 지연을 넣은 페이지로도 프로덕션은 정상이었습니다.
+
+#### 실제 사용자에게 남는 것
+
+일반 브라우저 탭은 화면을 그리므로 rAF가 정상 동작합니다. 남는 경우는
+**백그라운드 탭**입니다. 새 탭으로 열어두고 보지 않는 동안에는 rAF가
+멈추므로, 서버가 느려 경계가 늦게 도착한 경우 그 탭을 볼 때까지 폴백이
+남습니다. 탭을 보는 순간 rAF가 돌아 바로 채워집니다. 영구히 깨지지
+않습니다.
+
+React가 의도한 동작이라 코드로 우회하지 않았습니다. rAF를 setTimeout으로
+바꿔치기하는 식의 폴리필은 프레임워크와 싸우는 일이고, 얻는 것보다 잃는
+것이 큽니다.
+
+#### 작업할 때 알아둘 것
+
+이 브라우저 창에서 `loading.tsx` 폴백이 안 넘어가면 코드를 의심하기 전에
+콘솔에서 아래를 먼저 확인하십시오.
+
+```js
+window.$RB && window.$RB.length   // 0보다 크면 rAF 대기 중
+window.$RV(window.$RB)            // 강제로 꽂기
+```
+
+화면 확인은 프로덕션 빌드로 하는 편이 확실합니다.
+`.claude/launch.json`에 `siheomsaju-prod`를 넣어 두었습니다.
+
 ### 남은 문제
-
-**개발 서버에서 /result가 멈춥니다.** `next dev`로 열면 loading 화면에서
-넘어가지 않습니다. 프로덕션 빌드(`npm run build && npm run start`)에서는
-정상입니다. HMR 관련으로 보이며 원인을 찾지 못했습니다. 화면 확인은
-프로덕션 빌드로 하십시오. `.claude/launch.json`에 `siheomsaju-prod`
-설정을 넣어 두었습니다.
-
-**랜딩 캐릭터 이미지 두 장이 없습니다.** `hero-body.png`,
-`hero-arm.png`를 `public/character/`에 넣고 `lib/content/characters.ts`의
-`CHARACTER_HERO_BODY` / `CHARACTER_HERO_ARM`을 채우면 팔이 흔들립니다.
-지금은 기존 hero.png로 몸통만 움직입니다.
 
 **PRD 8.3 본문과 표가 어긋납니다.** 본문은 "합계 6,900자"인데 표를
 더하면 7,200입니다. 표를 따랐습니다. 면접은 7,900으로 일치합니다.
@@ -142,11 +224,30 @@ RUN_REPORT_SAMPLE=1 npx vitest run test/report-output.test.ts
 것만 정하고 규칙이 없어 `getWeekFlowPattern`에서 평균 → 진폭 → 최고점
 위치 순으로 가르도록 했습니다.
 
+### 내가 해야 할 일
+
+| 할 일 | 필수 여부 |
+|---|---|
+| Supabase에 `004_prd_v3.sql` 실행 | **필수** |
+| 위 ①②③ 값 결정 (max_tokens · 타임아웃 · 원가) | **필수** |
+| Vercel Pro 플랜 전환 | **필수** |
+| PG 계약 | **필수** |
+| 카카오 / 구글 OAuth 등록 | **필수** |
+| 사업자 등록 · 통신판매업 신고 | **필수** |
+| `hero-body.png`, `hero-arm.png` 제작 | 선택 |
+
+`hero-body.png`(흔드는 팔을 뺀 전신)와 `hero-arm.png`(흔드는 팔만,
+어깨 관절이 캔버스 하단 중앙)를 `public/character/`에 넣고
+`lib/content/characters.ts`의 `CHARACTER_HERO_BODY` /
+`CHARACTER_HERO_ARM`에 경로를 채우면 팔이 흔들립니다.
+**없어도 서비스는 정상 동작합니다.** 지금은 기존 `hero.png`로 몸통만
+숨쉬듯 움직이고, 애니메이션 코드는 이미 들어가 있습니다.
+
 ### 출시 전 반드시 해결해야 하는 것
 
 | 항목 | 왜 |
 |---|---|
-| **Supabase 004 적용** | 위 참조 |
+| **Supabase 004 적용** | 안 하면 리포트 저장이 실패합니다 |
 | **위 ①②③ 결정** | 지금 값으로 배포하면 리포트가 전부 실패합니다 |
 | **Vercel Pro 플랜** | Hobby는 60초 상한. 생성이 217-308초입니다 |
 | **PG 계약** | `app/api/payment/route.ts`가 PG 검증 없이 결제 성공을 믿습니다 |
@@ -161,11 +262,8 @@ npm run dev
 
 `http://localhost:3000` · 관리자는 `/admin` (회원님 메일로 로그인)
 
-화면 확인은 프로덕션 빌드로 하십시오.
-
-```bash
-npm run build
-```
+개발 서버로 정상 동작합니다. 위 rAF 항목은 이 작업 환경의 브라우저 창에서만
+나타나는 현상입니다.
 
 ---
 
