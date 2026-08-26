@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { runPipeline } from './pipeline'
-import { buildMaterial } from './prompt'
+import { buildMaterial, getHoursUntilStart } from './prompt'
 import { getReportSpec } from './spec'
 import { buildFreeResult, type UserInput } from '../content/assemble'
 
@@ -116,5 +116,64 @@ describe('프롬프트 재료 (PRD 8.15)', () => {
 
     expect(m.fragments.position).toBeTruthy()
     expect(m.fragments.compatibility).toBeUndefined()
+  })
+})
+
+describe('D-DAY 구성과 시각 재료 (PRD 8.8, 8.16)', () => {
+  const now = new Date(2027, 2, 15, 7, 30) // 시험 당일 아침 7시 30분
+
+  it('남은 시간을 시간 단위로 넣는다', () => {
+    // 07:30 → 10:00 은 2.5시간
+    expect(getHoursUntilStart('2027-03-15', '10:00', now)).toBe(2.5)
+  })
+
+  it('시작 시각이 지났으면 음수다', () => {
+    const after = new Date(2027, 2, 15, 12, 0)
+    expect(getHoursUntilStart('2027-03-15', '10:00', after)).toBe(-2)
+  })
+
+  it('시작 시각을 모르면 null이다', () => {
+    expect(getHoursUntilStart('2027-03-15', null, now)).toBeNull()
+  })
+
+  it('재료에 현재 시각과 남은 시간이 들어간다', () => {
+    const result = buildFreeResult(WRITTEN, now)
+    const spec = getReportSpec('필기', 'dday', 2027)
+    const m = buildMaterial({ result, spec, now })
+
+    expect(m.exam.now).toBe('2027-03-15T07:30:00+09:00')
+    expect(m.exam.hoursUntilStart).toBe(2.5)
+    expect(m.ddayRange).toBe('dday')
+  })
+
+  it('시간을 모르면 timeSlots가 비고 startTimeRelation이 없다', () => {
+    const noTime: UserInput = { ...WRITTEN, startTime: null }
+    const result = buildFreeResult(noTime, now)
+    const spec = getReportSpec('필기', 'normal', 2027, { hasStartTime: false })
+    const m = buildMaterial({ result, spec, now })
+
+    expect(m.timeSlots).toEqual([])
+    expect(m.fortune.startTimeRelation).toBeNull()
+  })
+
+  it('십신과 발휘 지수가 재료에 들어간다 (PRD 5.6, 8.7)', () => {
+    const result = buildFreeResult(WRITTEN, now)
+    const spec = getReportSpec('필기', 'normal', 2027)
+    const m = buildMaterial({ result, spec, now })
+
+    expect(Object.keys(m.user.shipsin)).toHaveLength(5)
+    expect(Object.keys(m.user.shipsinPosition)).toHaveLength(5)
+    expect(m.fortune.potentialScore).toBeGreaterThanOrEqual(70)
+    expect(m.fortune.potentialScore).toBeLessThanOrEqual(120)
+    expect(m.fragments.shipsin).toBeTruthy()
+    expect(m.fragments.pattern).toBeTruthy()
+  })
+
+  it('필기 재료에 과목 검색 결과가 없다 (PRD 8.12)', () => {
+    const result = buildFreeResult(WRITTEN, now)
+    const spec = getReportSpec('필기', 'normal', 2027)
+    const m = buildMaterial({ result, spec, now })
+
+    expect(m.search).toEqual({})
   })
 })
