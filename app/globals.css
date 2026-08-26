@@ -115,3 +115,40 @@ body {
     animation: none;
   }
 }
+
+/* ── FIX_3 [5] 마퀴 ───────────────────────────────────────────
+ *
+ * 목록을 두 벌 이어 붙이고 -50%까지만 밉니다. 두 번째 벌이 첫 번째 벌
+ * 자리에 정확히 겹쳐, 되돌아온 순간을 알아챌 수 없습니다.
+ *
+ * 방향을 반대로 하는 줄은 -50%에서 시작해 0으로 갑니다. transform의
+ * 부호만 뒤집으면 시작 위치가 화면 오른쪽 밖이 되어 첫 바퀴가 빕니다.
+ */
+@keyframes marquee-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/*
+ * 위쪽 * 선택자가 animation-duration을 0.01ms로 줄여버리면 마퀴가 끝
+ * 상태로 튑니다. 마퀴는 컴포넌트에서 줄바꿈 목록으로 갈아끼우므로
+ * 여기서는 아예 끕니다 (FIX_3 [11]).
+ */
+@media (prefers-reduced-motion: reduce) {
+  [style*='marquee-'] {
+    animation: none !important;
+  }
+}

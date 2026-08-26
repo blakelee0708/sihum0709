@@ -11,6 +11,7 @@ import type { Metadata } from 'next'
 import CtaLink from '@/components/landing/CtaLink'
 import DiffCards from '@/components/landing/DiffCards'
 import Hero from '@/components/landing/Hero'
+import Marquee from '@/components/landing/Marquee'
 import Preview from '@/components/landing/Preview'
 import UserBlock from '@/components/landing/UserBlock'
 import NoticeBanner from '@/components/layout/NoticeBanner'
@@ -58,6 +59,7 @@ export default function HomePage() {
       <UserBlock />
 
       <Hero />
+      <Marquee />
       <DiffCards />
       <Preview />
 
