@@ -12,6 +12,10 @@
 
 import { Lock } from 'lucide-react'
 
+// 색 함수는 'use client' 밖에 둡니다. 여기서 export하면 서버 컴포넌트가
+// 호출할 때 클라이언트 참조가 넘어와 터집니다 (score-color.ts 주석 참고).
+import { potentialColor, scoreColor } from './score-color'
+
 interface Props {
   examDayScore: number
   todayScore: number
@@ -20,22 +24,6 @@ interface Props {
   potentialScore?: number
   /** 무료 결과에서는 true */
   potentialLocked?: boolean
-}
-
-export function scoreColor(score: number): string {
-  if (score >= 80) return 'var(--score-high)'
-  if (score >= 50) return 'var(--score-mid)'
-  return 'var(--score-low)'
-}
-
-/**
- * 발휘 지수는 70-120 범위라 0-100 기준 색을 그대로 쓸 수 없습니다.
- * 100을 기준으로 위아래를 나눕니다.
- */
-export function potentialColor(score: number): string {
-  if (score >= 105) return 'var(--score-high)'
-  if (score >= 95) return 'var(--score-mid)'
-  return 'var(--score-low)'
 }
 
 export default function ScorePair({

@@ -8,7 +8,7 @@
  */
 
 import type { TypeBadge } from '@/lib/content/characters'
-import { potentialColor, scoreColor } from '@/components/result/ScorePair'
+import { potentialColor, scoreColor } from '@/components/result/score-color'
 
 interface Props {
   examType: '필기' | '면접'

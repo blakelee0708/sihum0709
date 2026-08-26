@@ -17,6 +17,7 @@ import { generateReport } from './generate'
 import { checkLength, type LengthCheck } from './length'
 import { GenerateError, type GenerateResult } from './provider'
 import { buildMaterial, type PromptMaterial } from './prompt'
+import { stripFragmentEcho } from './fragment'
 import {
   applyMissingFoundedDate,
   getReportSpec,
@@ -88,6 +89,29 @@ function logSectionLengths(type: ReportSpec['type'], length: LengthCheck): void 
   console.warn(`${head} · ${detail}`)
 }
 
+/**
+ * 조각이 앞에 실리는 섹션에서 조각 메아리를 지웁니다 (PRD 8.18).
+ *
+ * 어느 섹션에 어느 조각이 붙는지는 화면(app/report/[id]/page.tsx)과
+ * 같은 대응입니다. 한쪽만 고치면 다시 어긋납니다.
+ */
+function stripEchoes(
+  content: Record<string, string>,
+  fragments: PromptMaterial['fragments']
+): Record<string, string> {
+  const pairs: [string, string | undefined][] = [
+    ['pattern', fragments.shipsin],
+    ['strategy', fragments.pattern],
+    ['compatibility', fragments.compatibility ?? fragments.position],
+  ]
+
+  const out = { ...content }
+  for (const [key, fragment] of pairs) {
+    if (out[key]) out[key] = stripFragmentEcho(out[key], fragment)
+  }
+  return out
+}
+
 export async function runPipeline(input: PipelineInput): Promise<PipelineOutput> {
   const result = buildFreeResult(input.userInput)
 
@@ -157,6 +181,15 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
   })
 
   const generated = await generateReport(material, spec)
+
+  // 조각이 앞에 다시 실리는 섹션에서 모델이 조각을 한 번 더 씁니다.
+  // 프롬프트로 여덟 번 말렸는데 여덟 번 다 반복했습니다. 코드가 지웁니다.
+  //
+  // 분량을 재기 전에 지웁니다. 메아리가 남아 있으면 마지막 섹션이 조각
+  // 265자만큼 부풀어 상한을 넘긴 것으로 잘못 잽니다.
+  if (!generated.mock) {
+    generated.content = stripEchoes(generated.content, material.fragments)
+  }
 
   // 목업은 자리 채움이라 분량을 재는 의미가 없습니다
   const length = checkLength(generated.content, spec)

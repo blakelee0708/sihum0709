@@ -18,7 +18,7 @@ import {
 } from 'recharts'
 
 import type { DayFlowLabeled } from '@/lib/content/assemble'
-import { scoreColor } from './ScorePair'
+import { scoreColor } from './score-color'
 
 interface Props {
   data: DayFlowLabeled[]

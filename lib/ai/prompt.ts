@@ -24,6 +24,7 @@ import {
   type ShipsinPosition,
 } from '../saju/shipsin'
 import type { ReportSpec } from './spec'
+import { fillFragment } from './fragment'
 
 /**
  * 톤 예시 (PRD 18.3 톤 분리).
@@ -229,8 +230,12 @@ export function buildMaterial(input: BuildPromptInput): PromptMaterial {
     fragments: {
       // 섹션 2와 마지막 섹션은 조각이 앞에 놓이고 AI 생성분이 뒤에 붙습니다.
       // 순서를 바꾸면 사주 해석의 일관성이 무너집니다 (PRD 8.18).
-      shipsin: P.shipsinByDayStem[saju.dayStemName],
-      pattern: P.patternByStrong[profile.strong],
+      //
+      // {name}님을 여기서 채웁니다. 이 값은 프롬프트에도 들어가고 reports에
+      // 저장돼 화면에도 그대로 실립니다. 채우지 않으면 유료 리포트에
+      // "{name}님은 어떤 시험을 봐도"가 찍힙니다. 실제로 찍혔습니다.
+      shipsin: fillFragment(P.shipsinByDayStem[saju.dayStemName], userInput.name),
+      pattern: fillFragment(P.patternByStrong[profile.strong], userInput.name),
     },
     search: {},
   }

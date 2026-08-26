@@ -26,6 +26,7 @@ import {
 import { getMonthFlow } from '@/lib/saju/fortune'
 import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
 import { getReportSpec, type SectionSpec } from '@/lib/ai/spec'
+import { fillFragment, stripFragmentEcho } from '@/lib/ai/fragment'
 import { isZombie } from '@/lib/ai/run-report'
 import type { ReportDdayRange } from '@/lib/saju/fortune'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server'
@@ -239,11 +240,13 @@ export default async function ReportPage({
           if (!section.highlight) visibleIndex += 1
           const index = visibleIndex
 
-          const body = content.generated[section.key]
-
           // 조각이 앞에, AI 생성분이 뒤에 옵니다 (PRD 8.18).
           // 순서를 바꾸면 사주 해석의 일관성이 무너집니다.
-          const lead =
+          //
+          // 조각은 저장할 때 {name}을 채우고 메아리도 지웁니다. 여기서 한 번
+          // 더 하는 것은 그 처리가 들어가기 전에 만들어진 리포트 때문입니다.
+          // 둘 다 여러 번 걸어도 결과가 같습니다.
+          const rawLead =
             section.key === 'pattern'
               ? content.fragments?.shipsin
               : section.key === 'strategy'
@@ -251,6 +254,9 @@ export default async function ReportPage({
                 : section.key === 'compatibility'
                   ? content.fragments?.compatibility ?? content.fragments?.position
                   : undefined
+
+          const lead = rawLead ? fillFragment(rawLead, query.name) : undefined
+          const body = stripFragmentEcho(content.generated[section.key], lead)
 
           // 계산 섹션은 그림이 먼저 오고 해설이 뒤에 붙습니다
           if (section.key === 'saju') {
