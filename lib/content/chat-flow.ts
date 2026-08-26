@@ -228,15 +228,14 @@ export function getSteps(answers: Answers): Step[] {
   }
 
   // 4-6. 면접 전용
+  //
+  // 기업 규모는 묻지 않습니다 (PRD 10.8). 선택지 6개로 얻는 것이 문장
+  // 하나뿐이고, 취준생 대부분이 중소·중견인데 대기업이 첫 버튼이라
+  // 해당 없다고 느끼기 쉽습니다. 유료에서 기업명을 받아 검색하면
+  // 규모까지 나오므로 무료에서 따로 물을 이유가 없습니다.
+  //
+  // 되살릴 때를 위해 answers.companyScale 타입과 조각은 남겨 두었습니다.
   if (isInterview) {
-    steps.push({
-      id: 'companyScale',
-      question: [...INTERVIEW_SCRIPTS.companyScale],
-      widget: 'options',
-      options: COMPANY_SCALES.map((s) => ({ value: s, label: s })),
-    })
-    if (!answers.companyScale) return steps
-
     steps.push({
       id: 'workType',
       question: [...INTERVIEW_SCRIPTS.workType],

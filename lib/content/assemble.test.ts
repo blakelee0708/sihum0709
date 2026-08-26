@@ -337,20 +337,21 @@ describe('무료 결과 조립', () => {
     expect(r.startTime).toBeNull()
   })
 
-  it('면접 카드 6은 조각 4개 (PRD 3.6)', () => {
+  it('면접 카드 6은 조각 3개 (PRD 3.6, 10.8)', () => {
     const r = buildFreeResult(
       {
         ...BASE,
         examType: '면접',
         examName: '대기업 1차 면접',
+        // 기업 규모를 넣어도 조립에 쓰이지 않습니다 (PRD 10.8)
         companyScale: '대기업',
         workType: '분석하고만드는일',
-        jobTitle: '반도체 공정기술',
+        jobTitle: '영업관리',
       },
       TODAY
     )
     const card6 = r.cards.find((c) => c.id === 6)!
-    expect(card6.paragraphs).toHaveLength(4)
+    expect(card6.paragraphs).toHaveLength(3)
   })
 
   it('미치환 변수가 남지 않는다', () => {

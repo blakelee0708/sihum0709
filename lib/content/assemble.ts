@@ -330,7 +330,8 @@ export function buildFreeResult(
 
   // 카드 6 — 방식별. 면접은 조각이 4개입니다 (PRD 3.6). 전체 공개
   if (input.examType === '면접') {
-    const scale = input.companyScale
+    // 기업 규모 조각은 쓰지 않습니다 (PRD 10.8). 질문을 없앴으므로
+    // 값이 언제나 null입니다. 조각은 파일에 남겨 두었습니다.
     const work = input.workType
     cards.push({
       id: 6,
@@ -338,7 +339,6 @@ export function buildFreeResult(
       kind: 'text',
       paragraphs: [
         F.methodIntro['면접'][variant],
-        scale ? F.companyScale[scale] : null,
         work ? F.workTypeByStrong[work][strong] : null,
         F.methodByWeak['면접'][weak],
       ]

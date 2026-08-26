@@ -76,12 +76,16 @@ describe('면접 흐름 (PRD 14.7)', () => {
     examName: '대기업 1차 면접',
   }
 
-  it('기업 규모 → 일의 성격 → 직무명 순으로 묻는다', () => {
-    expect(ids(base)).toEqual(['category', 'examName', 'companyScale'])
-    expect(ids({ ...base, companyScale: '대기업' })).toContain('workType')
-    expect(
-      ids({ ...base, companyScale: '대기업', workType: '분석하고만드는일' })
-    ).toContain('jobTitle')
+  it('일의 성격 → 직무명 순으로 묻는다', () => {
+    expect(ids(base)).toEqual(['category', 'examName', 'workType'])
+    expect(ids({ ...base, workType: '분석하고만드는일' })).toContain('jobTitle')
+  })
+
+  it('기업 규모는 묻지 않는다 (PRD 10.8)', () => {
+    // 선택지 6개로 얻는 것이 문장 하나뿐이고, 취준생 대부분이 중소·중견인데
+    // 대기업이 첫 버튼이라 해당 없다고 느끼기 쉽습니다.
+    const full = ids({ ...base, workType: '분석하고만드는일', jobTitle: '영업관리' })
+    expect(full).not.toContain('companyScale')
   })
 
   it('면접도 시험명을 받는다 (methodIntro 조각이 {exam}을 쓴다)', () => {
@@ -245,13 +249,13 @@ describe('선택지 배치 (PRD 21.11)', () => {
     expect(steps[0].options!.length).toBeGreaterThan(6)
   })
 
-  it('기업 규모는 6개라 1열이다', () => {
+  it('일의 성격은 4개라 1열이다', () => {
     const steps = getSteps({
       category: 'corp-interview',
       examName: '대기업 1차 면접',
     })
-    const scale = steps.find((s) => s.id === 'companyScale')!
-    expect(scale.options).toHaveLength(6)
+    const work = steps.find((s) => s.id === 'workType')!
+    expect(work.options).toHaveLength(4)
   })
 })
 
@@ -318,8 +322,8 @@ describe('대분류 10개와 방식 4분류 (PRD 10.1 ~ 10.4)', () => {
   it('시험명이 방식을 말해주면 묻지 않는다', () => {
     const steps = getSteps({ category: 'promo', examName: '승진 면접' })
     expect(steps.map((s) => s.id)).not.toContain('examType')
-    // 면접이므로 기업 규모로 넘어갑니다
-    expect(steps[steps.length - 1].id).toBe('companyScale')
+    // 면접이므로 일의 성격으로 넘어갑니다 (기업 규모는 묻지 않습니다)
+    expect(steps[steps.length - 1].id).toBe('workType')
   })
 
   it('시험명을 정규화한다 (PRD 10.3)', () => {
