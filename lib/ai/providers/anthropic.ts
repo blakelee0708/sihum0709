@@ -156,7 +156,12 @@ export class AnthropicProvider implements AIProvider {
       .map((c) => c.text)
       .join('')
 
-    const content = parseSections(text)
+    // 기대하는 섹션 키를 넘깁니다. JSON이 깨졌을 때 마지막 복구 단계가
+    // 이 키로 값을 긁어냅니다 (provider.ts extractByKeys).
+    const content = parseSections(
+      text,
+      spec.sections.filter((s) => s.source !== 'calc').map((s) => s.key)
+    )
 
     // 캐시 읽기/쓰기도 입력 토큰이므로 원가 계산에 합칩니다
     const usage = response.usage

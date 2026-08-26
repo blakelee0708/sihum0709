@@ -206,29 +206,32 @@ describe('섹션별 최소 분량 (PRD 8.3, 8.4)', () => {
   it('필기 D-8 이상이 PRD 8.3 표와 같다', () => {
     const spec = getReportSpec('필기', 'normal', 2026)
     expect(spec.sections.map((s) => [s.minChars, s.maxChars])).toEqual([
-      [180, 250], [350, 450], [350, 450], [500, 650], [600, 800], [300, 400],
+      [180, 300], [350, 450], [350, 450], [500, 650], [600, 800], [300, 400],
       [300, 400], [300, 400], [200, 280], [250, 330], [200, 280], [180, 250],
       [280, 360], [300, 550],
     ])
-    // PRD 8.3 본문은 "합계 4,000~4,800자"라 적었으나 표를 더하면
-    // 4,290~5,850입니다. 표의 값을 그대로 씁니다.
+    // PRD 8.3 본문은 "합계 4,000~5,000자"라 적었으나 표를 더하면
+    // 4,290~5,900입니다. 표의 값을 그대로 씁니다.
     //
-    // 마지막 섹션만 상한이 550입니다. 실측 7건 중 6건이 400을 넘겨
-    // 424~567자가 나왔습니다. 조각 250자가 맨 앞에 실리는 구조라
-    // 400에 맞추기 어렵습니다.
+    // 상한이 다른 섹션이 둘 있습니다. 둘 다 실측에서 거의 항상 넘겨
+    // 범위를 현실에 맞춘 것입니다.
+    //
+    //   섹션 1  180~300  250일 때 7회 중 6회 초과 (248~302)
+    //   마지막  300~550  400일 때 7회 중 6회 초과 (424~567)
+    //           조각 250자가 맨 앞에 실리는 구조입니다
     expect(targetChars(spec)).toBe(4290)
-    expect(targetMaxChars(spec)).toBe(5850)
+    expect(targetMaxChars(spec)).toBe(5900)
   })
 
   it('면접 D-8 이상이 PRD 8.4 표와 같다', () => {
     const spec = getReportSpec('면접', 'normal', 2026)
     expect(spec.sections.map((s) => [s.minChars, s.maxChars])).toEqual([
-      [180, 250], [350, 450], [380, 480], [500, 650], [280, 380], [380, 480],
+      [180, 300], [350, 450], [380, 480], [500, 650], [280, 380], [380, 480],
       [380, 480], [550, 700], [300, 400], [250, 330], [250, 330], [300, 400],
       [180, 250], [280, 360], [300, 550],
     ])
     expect(targetChars(spec)).toBe(4860)
-    expect(targetMaxChars(spec)).toBe(6490)
+    expect(targetMaxChars(spec)).toBe(6540)
   })
 
   it('분량이 축소 전보다 줄었다', () => {
@@ -265,7 +268,7 @@ describe('섹션별 최소 분량 (PRD 8.3, 8.4)', () => {
     // 그림만 두면 무료 결과와 차이가 없어 짧은 해설을 붙였습니다
     expect(saju.source).toBe('calc+ai')
     expect(cal.source).toBe('calc+ai')
-    expect([saju.minChars, saju.maxChars]).toEqual([180, 250])
+    expect([saju.minChars, saju.maxChars]).toEqual([180, 300])
     expect([cal.minChars, cal.maxChars]).toEqual([180, 250])
   })
 
@@ -298,7 +301,7 @@ describe('분량 검증 (PRD 8.3)', () => {
     const r = checkLength(fill(1), spec)
     expect(r.total).toBe(4290)
     expect(r.target).toBe(4290)
-    expect(r.targetMax).toBe(5850)
+    expect(r.targetMax).toBe(5900)
     expect(r.ok).toBe(true)
     expect(r.over).toBe(false)
     expect(r.short).toHaveLength(0)

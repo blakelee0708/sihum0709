@@ -157,12 +157,102 @@ export interface AIProvider {
   generate(material: PromptMaterial, spec: ReportSpec): Promise<GenerateResult>
 }
 
-/** 실패 원인을 남기되 본문 전체를 로그에 쏟지 않도록 앞뒤만 잘라 씁니다 */
-function peek(text: string): string {
+/**
+ * 실패 원인을 남기되 본문 전체를 로그에 쏟지 않도록 잘라 씁니다.
+ *
+ * JSON 오류 메시지에 "at position N"이 있으면 그 주변을 보여줍니다.
+ * 앞뒤 200자만 봐서는 5,000자짜리 응답의 어디가 깨졌는지 알 수 없습니다.
+ * 실제로 두 번 다 그것 때문에 원인을 못 짚었습니다.
+ */
+function peek(text: string, message?: string): string {
+  const at = message?.match(/position (\d+)/)
+  if (at) {
+    const pos = Number(at[1])
+    const from = Math.max(0, pos - 120)
+    const to = Math.min(text.length, pos + 120)
+    return (
+      `길이 ${text.length} · ${pos} 부근 "${text.slice(from, pos)}` +
+      `<<여기>>${text.slice(pos, to)}"`
+    )
+  }
+
   const n = 200
   const head = text.slice(0, n)
   const tail = text.length > n * 2 ? text.slice(-n) : ''
   return `길이 ${text.length} · 앞 "${head}"${tail ? ` · 뒤 "${tail}"` : ''}`
+}
+
+/** 정규식에 키를 그대로 넣기 위해 특수문자를 막습니다 */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** JSON 문자열 이스케이프를 되돌립니다 */
+function unescapeJsonString(text: string): string {
+  return text
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\')
+}
+
+/**
+ * JSON 문법을 포기하고 키 이름으로 값만 긁어냅니다.
+ *
+ * 실측 12건 중 2건이 파싱에서 죽었습니다. 두 번 다 본문 자체는 멀쩡했고
+ * 봉투만 깨져 있었습니다. 실패로 돌리면 3,900원짜리 생성을 통째로 다시
+ * 해야 하는데, 그 비용이 이 함수보다 훨씬 비쌉니다.
+ *
+ *   Bad control character in string literal    문자열 안의 날것 줄바꿈
+ *   Unexpected non-whitespace character after JSON
+ *                                              문자열 안의 이스케이프 안 된
+ *                                              따옴표로 객체가 일찍 닫힘
+ *
+ * 두 번째는 escapeRawControlChars로도 못 고칩니다. 따옴표가 어긋나면
+ * 문자열 안팎 판정 자체가 무너지기 때문입니다.
+ *
+ * 그래서 마지막 수단으로 구조를 무시하고 `"키": "` 위치만 찾아 다음 키
+ * 직전까지를 값으로 봅니다. 값 안에 따옴표나 줄바꿈이 몇 개 있든 상관이
+ * 없습니다.
+ *
+ * 기대한 키를 절반도 못 찾으면 포기합니다. 그때는 응답이 실제로 망가진
+ * 것이고, 억지로 살린 반쪽짜리 리포트를 결제한 사용자에게 보여주는 것이
+ * 더 나쁩니다.
+ */
+export function extractByKeys(
+  text: string,
+  keys: string[]
+): Record<string, string> | null {
+  if (keys.length === 0) return null
+
+  const marks = keys
+    .map((key) => {
+      const m = new RegExp(`"${escapeRegExp(key)}"\\s*:\\s*"`).exec(text)
+      return m ? { key, keyStart: m.index, valueStart: m.index + m[0].length } : null
+    })
+    .filter((x): x is { key: string; keyStart: number; valueStart: number } => x !== null)
+    .sort((a, b) => a.valueStart - b.valueStart)
+
+  if (marks.length * 2 < keys.length) return null
+
+  const out: Record<string, string> = {}
+
+  for (let i = 0; i < marks.length; i += 1) {
+    const limit = i + 1 < marks.length ? marks[i + 1].keyStart : text.length
+    let raw = text.slice(marks[i].valueStart, limit)
+
+    // 값 뒤에 붙은 닫는 따옴표·쉼표·중괄호를 순서대로 떼어냅니다
+    raw = raw.replace(/\s+$/, '')
+    if (raw.endsWith('}')) raw = raw.slice(0, -1).replace(/\s+$/, '')
+    if (raw.endsWith(',')) raw = raw.slice(0, -1).replace(/\s+$/, '')
+    if (raw.endsWith('"')) raw = raw.slice(0, -1)
+
+    const value = unescapeJsonString(raw).trim()
+    if (value) out[marks[i].key] = value
+  }
+
+  return Object.keys(out).length > 0 ? out : null
 }
 
 /**
@@ -214,26 +304,34 @@ function escapeRawControlChars(text: string): string {
 }
 
 /**
- * JSON을 한 번에 못 읽어 고쳐 읽은 횟수.
+ * JSON을 한 번에 못 읽어 고쳐 읽은 횟수. 프로세스 단위 누적입니다.
  *
  * 프롬프트에 이스케이프 지시를 넣었지만 지켜지는지는 재 봐야 압니다.
- * 빈도가 높으면 지시를 더 조여야 하므로 셉니다. 프로세스 단위 누적입니다.
+ * 빈도가 높으면 지시를 더 조여야 합니다.
+ *
+ *   escaped  제어문자만 고쳐서 다시 읽음 (가벼운 복구)
+ *   loose    JSON 문법을 포기하고 키로 긁어냄 (마지막 수단)
  */
-let repairCount = 0
+const repairs = { escaped: 0, loose: 0 }
 
-export function getParseRepairCount(): number {
-  return repairCount
+export function getParseRepairCount(): { escaped: number; loose: number } {
+  return { ...repairs }
 }
 
 export function resetParseRepairCount(): void {
-  repairCount = 0
+  repairs.escaped = 0
+  repairs.loose = 0
 }
 
 /**
  * 모델이 코드 블록으로 감싸거나 앞뒤에 설명을 붙이는 경우가 있어
  * 벗겨낸 뒤 파싱합니다.
  */
-export function parseSections(text: string): Record<string, string> {
+export function parseSections(
+  text: string,
+  /** 기대하는 섹션 키. 마지막 복구 단계에서 씁니다 */
+  keys: string[] = []
+): Record<string, string> {
   const trimmed = text.trim()
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/)
   const body = fenced ? fenced[1] : trimmed
@@ -250,16 +348,29 @@ export function parseSections(text: string): Record<string, string> {
   } catch {
     try {
       parsed = JSON.parse(escapeRawControlChars(slice))
-      repairCount += 1
+      repairs.escaped += 1
       console.warn(
         `[JSON 복구] 문자열 안의 제어문자를 이스케이프해 다시 읽었습니다 ` +
-          `(누적 ${repairCount}회). 프롬프트의 이스케이프 지시가 안 먹히고 있습니다.`
+          `(누적 ${repairs.escaped}회). 프롬프트의 이스케이프 지시가 안 먹히고 있습니다.`
       )
     } catch (e) {
-      // 무엇이 왔는지 모르면 고칠 수가 없습니다. 앞뒤 일부를 남깁니다.
+      // 봉투만 깨지고 본문은 멀쩡한 경우가 많습니다. 키로 긁어냅니다.
+      const loose = extractByKeys(slice, keys)
+      if (loose) {
+        repairs.loose += 1
+        console.warn(
+          `[JSON 복구] 문법을 포기하고 키로 긁어냈습니다 ` +
+            `(누적 ${repairs.loose}회, ${Object.keys(loose).length}/${keys.length}개). ` +
+            `${e instanceof Error ? e.message : String(e)}`
+        )
+        return loose
+      }
+
+      // 무엇이 왔는지 모르면 고칠 수가 없습니다. 실패 지점 주변을 남깁니다.
       throw new GenerateError(
         '응답 파싱 오류',
-        `${e instanceof Error ? e.message : String(e)} · ${peek(body)}`
+        `${e instanceof Error ? e.message : String(e)} · ` +
+          peek(slice, e instanceof Error ? e.message : undefined)
       )
     }
   }
