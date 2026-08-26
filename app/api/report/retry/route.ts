@@ -10,7 +10,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 /**
  * Vercel 서버리스 최대 실행 시간 (초).
  *
- * 리포트 생성 실측이 80-180초입니다. 기본값으로는 끝나기 전에 함수가 죽습니다.
+ * 리포트 생성 실측이 필기 189초, 면접 122초입니다. 기본값으로는 끝나기 전에 함수가 죽습니다.
  * Vercel Hobby 플랜은 60초가 상한이라 이 값이 무시되고 실패합니다.
  * 출시 전 Pro 플랜이 필요합니다.
  */
@@ -150,6 +150,8 @@ export async function POST(req: NextRequest) {
         input_tokens: out.generated.inputTokens,
         output_tokens: out.generated.outputTokens,
         generation_ms: out.generated.generationMs,
+        // 분량 분포를 보려고 남깁니다 (PRD 8.3). 출력 원가의 근거이기도 합니다.
+        total_chars: out.length.total,
       })
       .eq('id', report.id)
 

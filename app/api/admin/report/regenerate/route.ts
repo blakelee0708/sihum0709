@@ -108,6 +108,8 @@ export async function POST(req: NextRequest) {
         input_tokens: out.generated.inputTokens,
         output_tokens: out.generated.outputTokens,
         generation_ms: out.generated.generationMs,
+        // 분량 분포를 보려고 남깁니다 (PRD 8.3). 출력 원가의 근거이기도 합니다.
+        total_chars: out.length.total,
       })
       .eq('id', report.id)
 

@@ -18,7 +18,7 @@ import {
   DONE_WITHOUT_NAME,
   INTERVIEW_SCRIPTS,
 } from './chat-scripts'
-import { PRESET_CATEGORIES, getCategory } from './fragments'
+import { PRESET_CATEGORIES, getCategory, getExamOptions } from './fragments'
 
 export type StepId =
   | 'category'
@@ -129,7 +129,7 @@ export function getSteps(answers: Answers): Step[] {
         s.replace('{category}', stripCategoryLabel(category.label))
       ),
       widget: 'optionsWithFreeInput',
-      options: category.exams.map((e) => ({ value: e, label: e })),
+      options: getExamOptions(category).map((e) => ({ value: e, label: e })),
       placeholder: '예) 국가직 9급 공무원, LEET, 토익',
       icon: 'keyboard',
     })

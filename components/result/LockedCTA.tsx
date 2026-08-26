@@ -3,8 +3,8 @@
 /**
  * 방식별 결제 유도 CTA (PRD 14.9)
  *
- * 필기와 면접은 잠긴 항목 4개와 결제 버튼을,
- * 실기는 준비 중 안내와 알림 받기를 노출합니다 (PRD 8.2).
+ * 필기와 면접은 잠긴 항목과 결제 버튼을,
+ * 실기와 오디션은 준비 중 안내와 알림 받기를 노출합니다 (PRD 8.2).
  */
 
 import Link from 'next/link'
@@ -56,7 +56,7 @@ export default function LockedCTA({
   strongElement,
   ddayRange,
 }: Props) {
-  if (examType === '실기') {
+  if (examType === '실기' || examType === '오디션') {
     return (
       <section className="px-screen pt-section">
         <div
@@ -67,7 +67,9 @@ export default function LockedCTA({
             boxShadow: 'var(--shadow-card)',
           }}
         >
-          <p className="text-body">실기 시험 상세 리포트는 준비 중입니다.</p>
+          <p className="text-body">
+            {examType} 상세 리포트는 준비 중입니다.
+          </p>
           <p className="mt-1 text-label" style={{ color: 'var(--text-sub)' }}>
             준비되면 메일로 알려드릴게요.
           </p>

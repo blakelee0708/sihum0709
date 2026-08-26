@@ -1,7 +1,7 @@
 /**
- * 조각 조립 검증 (README 조립 규칙, PRD 3.2 ~ 3.8)
+ * 조각 조립 검증 (PRD 3.2 ~ 3.10, 3.7 조각 개수 표)
  *
- * 조각 개수와 키가 README 표와 맞는지, 조립 결과에 미치환 변수가
+ * 조각 개수와 키가 PRD 3.7, 8.18 표와 맞는지, 조립 결과에 미치환 변수가
  * 남지 않는지 확인합니다.
  */
 
@@ -11,7 +11,9 @@ import { F, P, PRESET_CATEGORIES } from './fragments'
 import { buildFreeResult, type UserInput } from './assemble'
 import {
   COMMON_SCRIPTS,
-  GENERATING_SCRIPTS,
+  GENERATING_STEPS,
+  GENERATING_TIMEOUT_MS,
+  fillGenerating,
   INTERVIEW_SCRIPTS,
   PAID_SCRIPTS,
   SCRIPT_COUNT,
@@ -19,7 +21,7 @@ import {
 import { TYPE_BADGES } from './characters'
 import { ELEMENTS, WORK_TYPES, COMPANY_SCALES } from '../saju/constants'
 
-const METHODS = ['필기', '면접', '실기'] as const
+const METHODS = ['필기', '면접', '실기', '오디션'] as const
 const RELATIONS = ['상생', '비화', '아극', '설기', '상극'] as const
 
 function countLeaf(v: unknown): number {
@@ -30,7 +32,7 @@ function countLeaf(v: unknown): number {
   return 0
 }
 
-describe('문장 조각 개수 (README)', () => {
+describe('문장 조각 개수 (PRD 3.7, 8.18)', () => {
   const expected: Record<string, number> = {
     speechBubble: 5,
     typeDescription: 5,
@@ -39,20 +41,26 @@ describe('문장 조각 개수 (README)', () => {
     weakElement: 5,
     dayRelation: 5,
     verdict: 5,
-    methodIntro: 21,
-    methodByStrong: 15,
-    methodByWeak: 15,
+    elementSummary: 5,
+    weekFlowSummary: 6,
+    flowLabel: 6,
+    startTimeByRelation: 20,
+    methodIntro: 28,
+    methodByStrong: 20,
+    methodByWeak: 20,
     workTypeByStrong: 20,
     companyScale: 6,
     luckyNumberByWeak: 5,
-    numberUseByMethod: 3,
-    luckyColorByWeak: 5,
-    outfitByMethod: 3,
+    numberUseByMethod: 4,
+    avoidColorByStrong: 5,
     eveByStrong: 5,
     eveByWeak: 5,
-    eveByMethod: 3,
-    flowLabel: 6,
-    startTimeByRelation: 15,
+    eveByMethod: 4,
+    lockTeaser: 4,
+    luckyColorByWeak: 5,
+    outfitByMethod: 4,
+    directionByWeak: 5,
+    timeSlotByWeak: 5,
   }
 
   for (const [key, n] of Object.entries(expected)) {
@@ -61,12 +69,23 @@ describe('문장 조각 개수 (README)', () => {
     })
   }
 
-  it('무료 합계 167개', () => {
-    expect(countLeaf(F)).toBe(167)
+  it('PRD 3.7 표의 항목을 빠짐없이 센다', () => {
+    // 표에 없는 키가 생기면 합계가 어긋나므로 여기서 걸립니다
+    const listed = Object.values(expected).reduce((a, n) => a + n, 0)
+    expect(listed).toBe(222)
   })
 
-  it('유료 합계 10개', () => {
-    expect(countLeaf(P)).toBe(10)
+  it('무료 합계 222개', () => {
+    expect(countLeaf(F)).toBe(222)
+  })
+
+  it('유료 합계 25개', () => {
+    expect(countLeaf(P)).toBe(25)
+  })
+
+  it('유료 신규 조각 — 십신 10, 반복 패턴 5', () => {
+    expect(countLeaf(P.shipsinByDayStem)).toBe(10)
+    expect(countLeaf(P.patternByStrong)).toBe(5)
   })
 })
 
@@ -78,11 +97,11 @@ describe('조각 키 (README)', () => {
     }
   })
 
-  it('방식 3종 × 변형 7개', () => {
+  it('방식 4종 × 변형 7개', () => {
     for (const m of METHODS) expect(F.methodIntro[m]).toHaveLength(7)
   })
 
-  it('방식 3종 × 관계 5종', () => {
+  it('방식 4종 × 관계 5종', () => {
     for (const m of METHODS)
       for (const rel of RELATIONS)
         expect(F.startTimeByRelation[m][rel], `${m}.${rel}`).toBeTruthy()
@@ -98,44 +117,135 @@ describe('조각 키 (README)', () => {
     for (const s of COMPANY_SCALES) expect(F.companyScale[s], s).toBeTruthy()
   })
 
+  it('오디션 조각이 방식별 항목에 모두 있다 (PRD 8.2)', () => {
+    for (const key of [
+      'methodByStrong',
+      'methodByWeak',
+    ] as const) {
+      for (const e of ELEMENTS) expect(F[key]['오디션'][e], `${key}.${e}`).toBeTruthy()
+    }
+    for (const key of ['numberUseByMethod', 'outfitByMethod', 'eveByMethod'] as const) {
+      expect(F[key]['오디션'], key).toBeTruthy()
+    }
+  })
+
   it('유료 조각 키', () => {
     for (const rel of RELATIONS) expect(P.compatibility[rel], rel).toBeTruthy()
     for (const e of ELEMENTS) expect(P.positionByStrong[e], e).toBeTruthy()
+    for (const e of ELEMENTS) expect(P.patternByStrong[e], e).toBeTruthy()
+    for (const stem of Object.keys(F.dayStem))
+      expect(P.shipsinByDayStem[stem], stem).toBeTruthy()
   })
 })
 
-describe('프리셋 시험 (PRD 14.7)', () => {
-  it('대분류 8개', () => {
-    expect(PRESET_CATEGORIES).toHaveLength(8)
+describe('프리셋 시험 (PRD 10.1, 10.3)', () => {
+  it('대분류 10개', () => {
+    expect(PRESET_CATEGORIES).toHaveLength(10)
   })
 
-  it('시험명 52개', () => {
-    const n = PRESET_CATEGORIES.reduce((a, c) => a + c.exams.length, 0)
-    expect(n).toBe(52)
+  it('시험명 73개', () => {
+    const n = PRESET_CATEGORIES.reduce(
+      (a, c) =>
+        a +
+        (c.exams?.length ?? 0) +
+        (c.subGroups?.reduce((b, g) => b + g.exams.length, 0) ?? 0),
+      0
+    )
+    expect(n).toBe(73)
   })
 
   it('기타 분류는 freeInputOnly', () => {
     const etc = PRESET_CATEGORIES.find((c) => c.id === 'etc')
     expect(etc?.freeInputOnly).toBe(true)
   })
+
+  it('자격증 · 어학은 하위 그룹 2개를 가진다 (PRD 10.3)', () => {
+    const c = PRESET_CATEGORIES.find((x) => x.id === 'cert-lang')
+    expect(c?.subGroups?.map((g) => g.id)).toEqual(['cert', 'lang'])
+    // 하위 그룹이 있으면 상위에 exams를 두지 않습니다
+    expect(c?.exams).toBeUndefined()
+  })
+
+  it('대학교 시험만 시험 기간을 묻는다 (PRD 10.4)', () => {
+    const withPeriod = PRESET_CATEGORIES.filter((c) => c.hasExamPeriod)
+    expect(withPeriod.map((c) => c.id)).toEqual(['school'])
+  })
+
+  it('오디션 · 실기 분류의 기본 방식은 오디션이다 (PRD 10.2)', () => {
+    const c = PRESET_CATEGORIES.find((x) => x.id === 'audition')
+    expect(c?.defaultType).toBe('오디션')
+  })
 })
 
 describe('대화 문구 (PRD 21.10)', () => {
-  it('총 27개', () => {
-    expect(SCRIPT_COUNT).toBe(27)
+  it('총 37개', () => {
+    expect(SCRIPT_COUNT).toBe(37)
   })
 
-  it('공통 10 / 면접 6 / 유료 3 / 생성 중 8', () => {
+  it('공통 10 / 면접 6 / 유료 3 / 생성 중 18', () => {
     expect(Object.keys(COMMON_SCRIPTS)).toHaveLength(10)
     expect(Object.keys(INTERVIEW_SCRIPTS)).toHaveLength(6)
     expect(Object.keys(PAID_SCRIPTS)).toHaveLength(3)
-    expect(GENERATING_SCRIPTS.필기.length + GENERATING_SCRIPTS.면접.length).toBe(8)
+    expect(GENERATING_STEPS.필기.length + GENERATING_STEPS.면접.length).toBe(18)
   })
 
   it('말풍선은 두 줄을 넘기지 않는다', () => {
     for (const s of Object.values(COMMON_SCRIPTS)) expect(s.length).toBeLessThanOrEqual(2)
     for (const s of Object.values(INTERVIEW_SCRIPTS)) expect(s.length).toBeLessThanOrEqual(2)
     for (const s of Object.values(PAID_SCRIPTS)) expect(s.length).toBeLessThanOrEqual(2)
+  })
+})
+
+describe('생성 중 대기 화면 (PRD 14.11)', () => {
+  // 실측 78-84초. 마지막 문구가 그보다 일찍 나와야 빈 구간이 생기지 않습니다.
+  it('두 종류 다 9개이고 0초부터 78초까지 10초 간격으로 놓인다', () => {
+    for (const type of ['필기', '면접'] as const) {
+      const steps = GENERATING_STEPS[type]
+      expect(steps).toHaveLength(9)
+      expect(steps.map((s) => s.at)).toEqual([0, 8, 18, 28, 38, 48, 58, 68, 78])
+    }
+  })
+
+  it('명식은 8초, 오행 분포는 18초 문구에 붙는다', () => {
+    for (const type of ['필기', '면접'] as const) {
+      const steps = GENERATING_STEPS[type]
+      expect(steps.find((s) => s.card === 'saju')?.at).toBe(8)
+      expect(steps.find((s) => s.card === 'elements')?.at).toBe(18)
+    }
+  })
+
+  it('타임아웃이 실측 소요 시간보다 넉넉하다', () => {
+    const last = GENERATING_STEPS.필기[GENERATING_STEPS.필기.length - 1].at
+    expect(GENERATING_TIMEOUT_MS).toBe(240_000)
+    expect(GENERATING_TIMEOUT_MS / 1000).toBeGreaterThan(last)
+    // 실측 최댓값(필기 188.7초)보다 커야 정상 완료를 실패로 처리하지 않습니다
+    expect(GENERATING_TIMEOUT_MS / 1000).toBeGreaterThan(190)
+  })
+
+  it('자리표시자를 남기지 않는다', () => {
+    const vars = {
+      name: '김민준',
+      examDate: '9월 12일',
+      exam: '국가직 9급',
+      company: '삼성전자',
+      jobTitle: '반도체 공정기술',
+    }
+
+    for (const type of ['필기', '면접'] as const) {
+      for (const step of GENERATING_STEPS[type]) {
+        expect(fillGenerating(step.text, vars)).not.toMatch(/[{}]/)
+        // 값이 하나도 없어도 자리표시자가 그대로 노출되면 안 됩니다
+        expect(fillGenerating(step.text, {})).not.toMatch(/[{}]/)
+      }
+    }
+  })
+
+  it('이름을 건너뛰면 조사까지 지운다', () => {
+    expect(fillGenerating('{name}님 명식이 나왔어요', {})).toBe('명식이 나왔어요')
+    expect(fillGenerating('{name}님과의 궁합을 보고 있어요', {})).toBe('궁합을 보고 있어요')
+    expect(fillGenerating('{name}님 명식이 나왔어요', { name: '김민준' })).toBe(
+      '김민준님 명식이 나왔어요'
+    )
   })
 })
 

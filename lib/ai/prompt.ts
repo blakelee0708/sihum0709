@@ -197,9 +197,21 @@ export const SYSTEM_PROMPT = `당신은 사주 명리를 바탕으로 시험 준
 
 [문체]
 - 격식체를 씁니다. "~습니다", "~시기 바랍니다"
-- 한 섹션은 5-6문장으로 씁니다
 - 구어체와 이모지를 쓰지 않습니다
 - 문장을 "이런 면이 있고, 대신 이런 면이 있다" 구조로 씁니다
+
+[분량]
+섹션마다 최소 글자 수가 지정됩니다. 공백을 포함해 셉니다.
+문장 수가 아니라 글자 수가 기준입니다. 짧은 문장을 여러 개 늘어놓아 개수만
+채우지 마십시오. 한 문장에 근거와 행동이 함께 들어가도록 씁니다.
+
+  부족: "화 기운이 강합니다. 몰입이 빠릅니다. 다만 지속이 짧습니다."
+  적절: "화 기운이 28점으로 가장 높아 한번 붙잡으면 몰입이 빠르게 올라오는
+        대신 그 상태가 오래 가지 않습니다. 50분 공부 10분 휴식처럼 끊어가는
+        방식이 90분을 통으로 앉아 있는 것보다 총량이 많이 나옵니다."
+
+분량을 채우려고 같은 말을 다시 쓰거나 일반론을 늘어놓지 마십시오.
+재료에 있는 점수, 날짜, 관계 판정을 근거로 삼아 구체적으로 채웁니다.
 
 [톤 예시]
 아래는 이 서비스의 무료 구간에서 쓰는 실제 문장입니다. 같은 톤으로 쓰십시오.
@@ -250,8 +262,10 @@ export function buildUserPrompt(
   const aiSections = spec.sections.filter((s) => s.source !== 'calc')
 
   const instructions = aiSections
-    .map((s) => `- ${s.key} (${s.title}): ${s.brief ?? ''}`)
+    .map((s) => `- ${s.key} (${s.title}) — ${s.minChars}자 이상: ${s.brief ?? ''}`)
     .join('\n')
+
+  const totalMin = aiSections.reduce((a, s) => a + s.minChars, 0)
 
   const fragmentNote = material.fragments.compatibility
     ? `\n[궁합 섹션 주의]\n아래 조각이 이미 리포트에 실립니다. 같은 말을 반복하지 말고 기업 정보와 결합한 확장 해석만 쓰십시오.\n"${material.fragments.compatibility}"\n`
@@ -263,7 +277,15 @@ export function buildUserPrompt(
 ${JSON.stringify(material, null, 2)}
 
 [작성할 섹션]
+각 항목 뒤의 글자 수는 그 섹션의 최소치입니다. 합계 ${totalMin}자 이상입니다.
+
 ${instructions}
 ${fragmentNote}
+[마지막 점검]
+모든 섹션을 작성한 뒤 각 섹션의 분량이 최소 기준을 충족하는지 확인하고,
+부족한 섹션은 내용을 더 채운 뒤 최종 JSON을 출력하십시오.
+분량을 채우기 위해 같은 말을 반복하거나 일반론을 늘어놓지 말고,
+계산 결과에 근거한 구체적인 내용으로 채우십시오.
+
 위 섹션 키를 모두 담은 JSON 객체 하나만 출력하십시오.`
 }

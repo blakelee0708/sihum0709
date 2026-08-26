@@ -11,10 +11,12 @@
  * 소액 결제이므로 계약 전 건당 최소 수수료 유무를 반드시 확인하시기 바랍니다 (PRD 12.1).
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 
+import GeneratingChat from '@/components/chat/GeneratingChat'
+import FailedState from '@/components/report/FailedState'
 import { PRICE } from '@/components/result/LockedCTA'
 import {
   PAID_SESSION_KEY,
@@ -22,13 +24,18 @@ import {
   toUserInput,
   type Answers,
 } from '@/lib/content/chat-flow'
+import { GENERATING_TIMEOUT_MS } from '@/lib/content/chat-scripts'
 import { DDAY_NOTICE } from '@/lib/ai/spec'
 import { getReportDdayRange, diffDays } from '@/lib/saju/fortune'
 import { parseLocalDateTime } from '@/lib/saju/calculate'
-import type { UserInput } from '@/lib/content/assemble'
+import { buildFreeResult, formatExamDate, type UserInput } from '@/lib/content/assemble'
 import { track } from '@/lib/analytics'
 
-type Phase = 'ready' | 'paying' | 'generating' | 'error'
+/**
+ * 리포트 생성이 2-3분 걸립니다. 그 사이 사용자를 붙들고 있는 곳이 이 화면이라
+ * 대기 화면(PRD 14.11)도 여기서 보여줍니다. 240초를 넘기면 실패로 봅니다.
+ */
+type Phase = 'ready' | 'paying' | 'generating' | 'timeout' | 'error'
 
 export default function CheckoutView({ queryId }: { queryId: string | null }) {
   const router = useRouter()
@@ -39,6 +46,11 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
   const [coupon, setCoupon] = useState('')
   const [phase, setPhase] = useState<Phase>('ready')
   const [error, setError] = useState<string | null>(null)
+  // 타임아웃 후 다시 시도할 때 그대로 씁니다
+  const [pending, setPending] = useState<{ qid: string; paymentId: string | null } | null>(null)
+
+  // 명식과 오행 분포는 AI 없이 코드가 즉시 계산합니다. 대기 화면에서 먼저 보여줍니다.
+  const free = useMemo(() => (input ? buildFreeResult(input) : null), [input])
 
   useEffect(() => {
     try {
@@ -121,29 +133,86 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
       })
 
       // 3. 리포트 생성
-      setPhase('generating')
-      const repRes = await fetch('/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ queryId: qid, companyName, paymentId }),
-      })
-
-      const repJson = (await repRes.json().catch(() => ({}))) as {
-        id?: string
-        error?: string
-      }
-
-      // 생성에 실패해도 리포트 행은 만들어졌으므로 실패 화면으로 보냅니다
-      if (repJson.id) {
-        router.push(`/report/${repJson.id}`)
-        return
-      }
-
-      throw new Error(repJson.error ?? 'report')
+      setPending({ qid, paymentId })
+      await requestReport(qid, paymentId)
     } catch {
       setPhase('error')
       setError('결제 처리 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.')
     }
+  }
+
+  /**
+   * 리포트 생성 요청.
+   *
+   * 이미 만들어진 리포트가 있으면 서버가 그것을 그대로 돌려주므로(PRD 8.16)
+   * 타임아웃 후 다시 눌러도 두 번 생성되지 않습니다.
+   */
+  async function requestReport(qid: string, paymentId: string | null) {
+    setPhase('generating')
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), GENERATING_TIMEOUT_MS)
+
+    let repJson: { id?: string; error?: string }
+    try {
+      const repRes = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ queryId: qid, companyName, paymentId }),
+        signal: controller.signal,
+      })
+      repJson = (await repRes.json().catch(() => ({}))) as { id?: string; error?: string }
+    } catch (e) {
+      // 상한을 넘겼습니다. 서버는 계속 돌고 있을 수 있으므로 결제를 되돌리지 않고
+      // 다시 시도하게 둡니다 (PRD 14.12).
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setPhase('timeout')
+        return
+      }
+      throw e
+    } finally {
+      clearTimeout(timer)
+    }
+
+    // 생성에 실패해도 리포트 행은 만들어졌으므로 실패 화면으로 보냅니다
+    if (repJson.id) {
+      router.push(`/report/${repJson.id}`)
+      return
+    }
+
+    throw new Error(repJson.error ?? 'report')
+  }
+
+  // 결제가 끝나고 생성을 기다리는 동안 (PRD 14.11)
+  if (phase === 'generating' && input) {
+    return (
+      <GeneratingChat
+        reportType={input.examType === '면접' ? '면접' : '필기'}
+        vars={{
+          name: input.name,
+          examDate: formatExamDate(input.examDate),
+          exam: input.examName,
+          company: companyName,
+          jobTitle: input.jobTitle,
+        }}
+        saju={free?.saju ?? null}
+        profile={free?.profile ?? null}
+      />
+    )
+  }
+
+  if (phase === 'timeout' && pending) {
+    return (
+      <FailedState
+        headline="리포트가 아직 안 나왔어요"
+        description={[
+          '결제는 정상 처리되었습니다.',
+          '만드는 데 예상보다 오래 걸리고 있어요.',
+          '아래 버튼으로 다시 시도하거나 문의를 남겨주세요.',
+        ]}
+        onRetry={() => requestReport(pending.qid, pending.paymentId)}
+      />
+    )
   }
 
   if (!input) {

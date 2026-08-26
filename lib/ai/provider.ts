@@ -9,14 +9,26 @@ import type { ReportSpec } from './spec'
 import type { PromptMaterial } from './prompt'
 
 /**
- * PRD 8.12 원가 통제 장치 — 출력 상한.
+ * 출력 상한 — 잘림 방지선입니다. 원가 통제 장치가 아닙니다.
  *
- * 기본 6000입니다. AI_MAX_TOKENS로 덮어쓸 수 있게 둔 이유는 아래와 같습니다.
- * Sonnet 5는 새 토크나이저를 써서 같은 한국어 문장이 이전 모델보다 최대
- * 1.35배 많은 토큰으로 계산됩니다. 섹션 11개 × 5-6문장이면 6000을 넘겨
- * stop_reason이 max_tokens로 잘립니다. 실측값에 맞춰 조정하십시오.
+ * PRD 8.12가 max_tokens를 원가 통제 장치로 적었으나 잘못된 분류였습니다.
+ * max_tokens는 상한일 뿐 과금 기준이 아닙니다. 청구는 실제로 생성된 토큰만큼만
+ * 발생하므로, 상한을 올려도 모델이 더 길게 쓰지 않는 한 원가는 오르지 않습니다.
+ *
+ * 값은 실측으로 정했습니다. 출력 토큰에는 adaptive thinking 분량이 포함됩니다.
+ *   6000  — 분량 요구를 넣기 전에도 두 번 다 잘렸습니다 (본문 3,000자에 5,500-5,700 소모)
+ *   12000 — 분량 요구를 넣은 뒤 필기가 잘렸습니다. 면접은 본문 5,156자에 8,517을 썼습니다
+ *   20000 — 성공 사례의 2.3배. 여기서 잘린 적이 없습니다
+ *
+ * 올려도 실제 생성량만큼만 청구되므로 여유를 두는 쪽이 낫습니다.
+ * 잘린 리포트는 결제한 사용자에게 보여줄 수 없어 어차피 다시 만들어야 하고,
+ * 그 재생성 비용이 상한을 넉넉히 두는 것보다 비쌉니다.
+ *
+ * 원가 통제는 아래 두 가지로만 합니다.
+ *   1. 검색 결과 절단 (search.ts CONTEXT_LIMIT) — 입력 통제
+ *   2. 프롬프트에 명시한 섹션별 분량 (spec.ts minChars) — 출력 통제
  */
-export const MAX_TOKENS = Number(process.env.AI_MAX_TOKENS) || 6000
+export const MAX_TOKENS = Number(process.env.AI_MAX_TOKENS) || 20000
 
 export type ProviderName = 'anthropic' | 'deepseek'
 
@@ -38,6 +50,10 @@ export type GenerateErrorKind =
   | '검색 API 실패'
   | '응답 파싱 오류'
   | '토큰 한도 초과'
+  /** stop_reason이 max_tokens — 본문이 잘렸으므로 사용자에게 보여주지 않습니다 */
+  | '출력 잘림'
+  /** 생성은 끝났으나 분량이 목표의 70%에 못 미침 */
+  | '분량 미달'
   | '알 수 없는 오류'
 
 export class GenerateError extends Error {
@@ -107,7 +123,7 @@ export function mockContent(spec: ReportSpec): Record<string, string> {
     out[s.key] = [
       `[샘플] "${s.title}" 섹션입니다. AI API 키를 넣으면 실제 내용이 생성됩니다.`,
       s.brief ?? '',
-      '이 문단은 화면 배치와 분량을 확인하기 위한 자리 채움이며 사주 해석이 아닙니다. 실제 리포트는 계산된 사주 값과 시험 정보를 재료로 5-6문장씩 작성됩니다.',
+      `이 문단은 화면 배치와 분량을 확인하기 위한 자리 채움이며 사주 해석이 아닙니다. 실제 리포트는 계산된 사주 값과 시험 정보를 재료로 이 섹션 기준 ${s.minChars}자 이상 작성됩니다.`,
     ]
       .filter(Boolean)
       .join('\n\n')

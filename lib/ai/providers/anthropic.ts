@@ -7,7 +7,8 @@
  *    Sonnet 5는 기본값이 아닌 샘플링 값을 주면 400을 돌려줍니다.
  * 2. thinking 파라미터를 수동으로 설정하지 않습니다.
  *    adaptive thinking이 기본으로 켜져 있습니다.
- * 3. max_tokens는 6000으로 고정합니다 (PRD 8.12 원가 통제).
+ * 3. max_tokens는 잘림 방지선입니다. 원가 통제 장치가 아니므로 넉넉히 둡니다.
+ *    기본 20000, AI_MAX_TOKENS로 덮어씁니다.
  * 4. 시스템 프롬프트에 cache_control을 걸어 반복 비용을 줄입니다.
  *
  * ── 토큰 계산 주의 ──
@@ -40,8 +41,9 @@ import {
 const DEFAULT_MODEL = 'claude-sonnet-5'
 
 /**
- * 실측 소요 시간이 80-180초입니다. PRD 14.11은 10-20초를 가정했으나
- * 섹션 11개를 한국어로 쓰는 데 그보다 훨씬 오래 걸립니다.
+ * 실측 소요 시간이 필기 188.7초, 면접 121.8초입니다. PRD 14.11 초안은
+ * 10-20초를 가정했으나 섹션 11개를 한국어로 4,800-5,150자 쓰는 데
+ * 그보다 훨씬 오래 걸립니다.
  *
  * 스트리밍을 쓰므로 HTTP 타임아웃에 걸리지 않지만, 무한정 기다리지 않도록
  * 상한을 둡니다.
@@ -123,8 +125,13 @@ export class AnthropicProvider implements AIProvider {
       throw toGenerateError(e, sdk)
     }
 
+    // 잘린 본문은 사용자에게 보여주지 않습니다. 섹션이 중간에서 끊기거나
+    // JSON이 닫히지 않은 상태이므로 실패로 처리하고 재시도하게 둡니다.
     if (response.stop_reason === 'max_tokens') {
-      throw new GenerateError('토큰 한도 초과')
+      throw new GenerateError(
+        '출력 잘림',
+        `max_tokens(${MAX_TOKENS})에 걸려 본문이 잘렸습니다`
+      )
     }
 
     if (response.stop_reason === 'refusal') {

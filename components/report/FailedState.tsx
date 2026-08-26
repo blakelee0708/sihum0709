@@ -17,11 +17,31 @@ import { CHARACTER_NAME } from '@/lib/content/characters'
 const MAX_RETRY = 3
 
 interface Props {
-  reportId: string
-  retryCount: number
+  /** 저장된 리포트 행이 있는 경우 (PRD 14.12 기본 경로) */
+  reportId?: string
+  retryCount?: number
+  /**
+   * 리포트 id를 아직 모르는 경우 — 결제 직후 대기 타임아웃(PRD 14.11 150초).
+   * 넘기면 /api/report/retry 대신 이 함수로 다시 시도합니다.
+   */
+  onRetry?: () => Promise<void>
+  headline?: string
+  /** 한 줄이 배열 한 칸입니다 */
+  description?: string[]
 }
 
-export default function FailedState({ reportId, retryCount }: Props) {
+const DEFAULT_DESCRIPTION = [
+  '결제는 정상 처리되었습니다.',
+  '아래 버튼으로 다시 시도하거나 문의를 남겨주세요.',
+]
+
+export default function FailedState({
+  reportId,
+  retryCount = 0,
+  onRetry,
+  headline = '리포트 생성에 실패했어요',
+  description = DEFAULT_DESCRIPTION,
+}: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +51,17 @@ export default function FailedState({ reportId, retryCount }: Props) {
   async function handleRetry() {
     setBusy(true)
     setError(null)
+
+    if (onRetry) {
+      try {
+        await onRetry()
+      } catch {
+        setError('다시 만들지 못했어요. 잠시 후 한 번 더 시도해 주세요.')
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
 
     try {
       const res = await fetch('/api/report/retry', {
@@ -67,12 +98,15 @@ export default function FailedState({ reportId, retryCount }: Props) {
         className="h-[160px] w-[160px] object-contain"
       />
 
-      <h1 className="mt-3 text-headline">리포트 생성에 실패했어요</h1>
+      <h1 className="mt-3 text-headline">{headline}</h1>
 
       <p className="mt-3 text-body" style={{ color: 'var(--text-sub)' }}>
-        결제는 정상 처리되었습니다.
-        <br />
-        아래 버튼으로 다시 시도하거나 문의를 남겨주세요.
+        {description.map((line, i) => (
+          <span key={i}>
+            {i > 0 && <br />}
+            {line}
+          </span>
+        ))}
       </p>
 
       {error && (

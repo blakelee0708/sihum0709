@@ -8,13 +8,13 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 
-import GeneratingChat from '@/components/chat/GeneratingChat'
 import Disclaimer from '@/components/layout/Disclaimer'
 import ElementBar from '@/components/report/ElementBar'
 import FailedState from '@/components/report/FailedState'
+import GeneratingState from '@/components/report/GeneratingState'
 import KakaoShareButton from '@/components/report/KakaoShareButton'
 import MonthCalendar from '@/components/report/MonthCalendar'
-import ReportSection from '@/components/report/ReportSection'
+import ReportSection, { ReportBody } from '@/components/report/ReportSection'
 import SajuTable from '@/components/report/SajuTable'
 import { buildFreeResult, formatExamDate, type UserInput } from '@/lib/content/assemble'
 import { getMonthFlow } from '@/lib/saju/fortune'
@@ -100,16 +100,6 @@ export default async function ReportPage({
     return <FailedState reportId={report.id} retryCount={report.retry_count ?? 0} />
   }
 
-  if (report.status !== 'completed' || !report.content) {
-    return (
-      <GeneratingChat
-        reportType={reportType}
-        examDate={formatExamDate(query.exam_date)}
-        company={query.company_name ?? undefined}
-      />
-    )
-  }
-
   // 계산 섹션은 저장하지 않고 매번 다시 계산합니다. 같은 입력이면 같은 값입니다.
   const userInput: UserInput = {
     name: query.name,
@@ -128,6 +118,27 @@ export default async function ReportPage({
 
   const free = buildFreeResult(userInput)
   const examYear = Number(query.exam_date.slice(0, 4))
+
+  // 명식과 오행 분포는 AI 없이도 이미 값이 있으므로 대기 중에 먼저 보여줍니다 (PRD 14.11)
+  if (report.status !== 'completed' || !report.content) {
+    return (
+      <GeneratingState
+        reportId={report.id}
+        retryCount={report.retry_count ?? 0}
+        reportType={reportType}
+        vars={{
+          name: query.name,
+          examDate: formatExamDate(query.exam_date),
+          exam: query.exam_name,
+          company: query.company_name,
+          jobTitle: query.job_title,
+        }}
+        saju={free.saju}
+        profile={free.profile}
+      />
+    )
+  }
+
   const monthFlow = getMonthFlow(free.saju, examYear)
 
   const content = report.content
@@ -170,6 +181,9 @@ export default async function ReportPage({
           if (!section.highlight) visibleIndex += 1
           const index = visibleIndex
 
+          const body = content.generated[section.key]
+
+          // 계산 섹션은 그림이 먼저 오고 해설이 뒤에 붙습니다
           if (section.key === 'saju') {
             return (
               <ReportSection key={section.key} index={index} title={section.title}>
@@ -181,6 +195,7 @@ export default async function ReportPage({
                     weak={free.profile.weak}
                   />
                 </div>
+                {body && <ReportBody body={body} />}
               </ReportSection>
             )
           }
@@ -189,11 +204,10 @@ export default async function ReportPage({
             return (
               <ReportSection key={section.key} index={index} title={section.title}>
                 <MonthCalendar data={monthFlow} year={examYear} />
+                {body && <ReportBody body={body} />}
               </ReportSection>
             )
           }
-
-          const body = content.generated[section.key]
 
           // 궁합 섹션은 미리 쓴 조각이 앞에 오고 AI 생성분이 뒤에 붙습니다
           if (section.key === 'compatibility') {

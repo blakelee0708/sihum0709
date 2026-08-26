@@ -8,7 +8,7 @@
 
 export type Element = '목' | '화' | '토' | '금' | '수'
 export type Relation = '상생' | '비화' | '상극' | '설기' | '아극'
-export type ExamType = '필기' | '면접' | '실기'
+export type ExamType = '필기' | '면접' | '실기' | '오디션'
 export type MethodKey = '객관식필기' | '서술논술' | '면접' | '실기'
 export type WorkType =
   | '사람을만나는일'
@@ -197,12 +197,22 @@ export const METHOD_FIT: Record<Element, Record<MethodKey, number>> = {
 
 export const METHOD_KEYS: MethodKey[] = ['객관식필기', '서술논술', '면접', '실기']
 
-/** 입력 방식(3분류) → 방식 궁합표에서 대표로 쓸 키 */
+/**
+ * 입력 방식(4분류) → 방식 궁합표(6.3)에서 대표로 쓸 키.
+ *
+ * 궁합표는 객관식필기·서술논술·면접·실기 네 축 그대로입니다.
+ * 오디션은 PRD 10.2가 "실기보다 면접에 가깝다"고 정의하므로 면접에 붙입니다.
+ * 평가 대상이 절차와 결과물이 아니라 인상과 표현이기 때문입니다.
+ */
 export const EXAM_TYPE_TO_METHOD_KEY: Record<ExamType, MethodKey> = {
   필기: '객관식필기',
   면접: '면접',
   실기: '실기',
+  오디션: '면접',
 }
+
+/** 입력 방식 4분류 (PRD 10.2) */
+export const EXAM_TYPES: ExamType[] = ['필기', '면접', '실기', '오디션']
 
 /** PRD 6.1 시험 당일 운 지수 — 관계별 가산 */
 export const DAY_SCORE_BY_RELATION: Record<Relation, number> = {

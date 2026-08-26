@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { applyMissingFoundedDate, getReportSpec, toReportType, DDAY_NOTICE } from './spec'
+import { checkLength, countChars, targetChars, LENGTH_TOLERANCE } from './length'
 import { extractFoundedDate, SEARCH_QUERIES } from './search'
 import { parseSections, GenerateError } from './generate'
 import { getReportDdayRange } from '../saju/fortune'
@@ -159,5 +160,85 @@ describe('AI 응답 파싱 (PRD 8.15)', () => {
   it('JSON이 아니면 파싱 오류를 던진다', () => {
     expect(() => parseSections('그냥 문장입니다.')).toThrow(GenerateError)
     expect(() => parseSections('{}')).toThrow(GenerateError)
+  })
+})
+
+describe('섹션별 최소 분량 (PRD 8.3, 8.4)', () => {
+  it('필기 D-8 이상 합계가 4,800자다', () => {
+    const spec = getReportSpec('필기', 'normal', 2026)
+    expect(spec.sections.reduce((a, x) => a + x.minChars, 0)).toBe(4800)
+  })
+
+  it('면접 D-8 이상 합계가 5,150자다', () => {
+    const spec = getReportSpec('면접', 'normal', 2026)
+    expect(spec.sections.reduce((a, x) => a + x.minChars, 0)).toBe(5150)
+  })
+
+  it('대체 섹션에도 분량이 지정돼 있다 (PRD 8.6)', () => {
+    for (const type of ['필기', '면접'] as const) {
+      for (const range of ['normal', 'short', 'eve', 'dday'] as const) {
+        for (const section of getReportSpec(type, range, 2026).sections) {
+          expect(section.minChars).toBeGreaterThan(0)
+        }
+      }
+    }
+  })
+
+  it('D-DAY는 구성이 줄어드는 만큼 목표도 낮다 (PRD 8.6)', () => {
+    const normal = targetChars(getReportSpec('필기', 'normal', 2026))
+    const dday = targetChars(getReportSpec('필기', 'dday', 2026))
+    expect(dday).toBeLessThan(normal)
+  })
+
+  it('명식과 캘린더에도 해설을 요구한다', () => {
+    const spec = getReportSpec('필기', 'normal', 2026)
+    const saju = spec.sections.find((x) => x.key === 'saju')!
+    const cal = spec.sections.find((x) => x.key === 'calendar')!
+    // 그림만 두면 무료 결과와 차이가 없어 짧은 해설을 붙였습니다
+    expect(saju.source).toBe('calc+ai')
+    expect(cal.source).toBe('calc+ai')
+    expect(saju.minChars).toBe(200)
+    expect(cal.minChars).toBe(250)
+  })
+})
+
+describe('분량 검증 (PRD 8.3)', () => {
+  const spec = getReportSpec('필기', 'normal', 2026)
+
+  function fill(ratio: number): Record<string, string> {
+    const out: Record<string, string> = {}
+    for (const s of spec.sections) out[s.key] = '가'.repeat(Math.round(s.minChars * ratio))
+    return out
+  }
+
+  it('공백을 포함해 세고 앞뒤 공백은 버린다', () => {
+    expect(countChars('  가 나  ')).toBe(3)
+  })
+
+  it('목표를 채우면 통과한다', () => {
+    const r = checkLength(fill(1), spec)
+    expect(r.total).toBe(4800)
+    expect(r.target).toBe(4800)
+    expect(r.ok).toBe(true)
+    expect(r.short).toHaveLength(0)
+  })
+
+  it('목표의 70% 미만이면 실패로 본다', () => {
+    expect(checkLength(fill(0.69), spec).ok).toBe(false)
+    expect(checkLength(fill(LENGTH_TOLERANCE), spec).ok).toBe(true)
+  })
+
+  it('실측 3,069자는 지금 기준으로 미달이다', () => {
+    // 프롬프트를 고치기 전 실측값입니다. 이 검증이 걸러내야 하는 대상입니다.
+    const r = checkLength({ studyType: '가'.repeat(3069) }, spec)
+    expect(r.ok).toBe(false)
+  })
+
+  it('모자란 섹션을 짚어준다', () => {
+    const content = fill(1)
+    content.seat = '가'.repeat(10)
+    const r = checkLength(content, spec)
+    expect(r.short.map((x) => x.key)).toEqual(['seat'])
+    expect(r.short[0].minChars).toBe(300)
   })
 })

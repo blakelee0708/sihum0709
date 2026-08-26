@@ -1,7 +1,7 @@
 /**
  * 대화 질문 문구 (PRD 21.10)
  *
- * 공통 10 + 면접 6 + 유료 3 + 생성 중 8 = 27개
+ * 공통 10 + 면접 6 + 유료 3 + 생성 중 18 = 37개
  *
  * 말풍선 안에 들어가므로 두 줄을 넘기지 않습니다.
  * 배열의 각 원소가 한 줄입니다.
@@ -82,31 +82,97 @@ export const PAID_SCRIPTS = {
 } as const satisfies Record<string, ChatScript>
 
 /**
- * 리포트 생성 중 8개 (필기 4 + 면접 4)
- * 3-4초 간격으로 순차 표시합니다 (PRD 14.11).
+ * 리포트 생성 중 문구 (PRD 14.11)
+ *
+ * 실측 생성 시간이 78-84초입니다. PRD 초안의 4개 × 3.5초 = 14초로는
+ * 남은 70초 동안 화면이 멈춰 보입니다. 9개로 늘리고 간격을 고정 주기가 아니라
+ * 생성 시작 기준 절대 시각(at)으로 둡니다. 경과 시간만 보면 되므로
+ * 표시 순서가 실제 진행과 어긋나지 않습니다.
+ *
+ * 78초 이후에도 끝나지 않으면 마지막 문구를 유지합니다.
+ * 완료되면 남은 문구를 건너뛰고 즉시 결과로 넘어갑니다.
  */
-export const GENERATING_SCRIPTS = {
+export interface GeneratingStep {
+  /** 생성 시작을 0초로 본 표시 시각 */
+  at: number
+  text: string
+  /**
+   * 문구 뒤에 붙일 계산 결과 카드.
+   * 명식과 오행 분포는 코드가 즉시 산출하므로 AI를 기다리는 동안 이미 값이 있습니다.
+   * 결제한 사람이 첫 20초 안에 실물을 받게 해 불안을 줄입니다.
+   */
+  card?: 'saju' | 'elements'
+}
+
+export const GENERATING_STEPS: Record<'필기' | '면접', readonly GeneratingStep[]> = {
   필기: [
-    '잠깐만요, 사주를 보고 있어요',
-    '{examDate} 기운을 계산하는 중이에요',
-    '시험 정보를 확인하는 중이에요',
-    '거의 다 됐어요!',
+    { at: 0, text: '잠깐만요, 사주를 보고 있어요' },
+    { at: 8, text: '{name}님 명식이 나왔어요', card: 'saju' },
+    { at: 18, text: '오행 분포를 계산하는 중이에요', card: 'elements' },
+    { at: 28, text: '{examDate} 기운을 보고 있어요' },
+    { at: 38, text: '시험 전 7일 흐름을 정리하는 중이에요' },
+    { at: 48, text: '{exam} 정보를 확인하는 중이에요' },
+    { at: 58, text: '과목별 배분을 계산하는 중이에요' },
+    { at: 68, text: '거의 다 됐어요' },
+    { at: 78, text: '마무리하는 중이에요' },
   ],
   면접: [
-    '잠깐만요, 사주를 보고 있어요',
-    '{company} 설립일을 확인하는 중이에요',
-    '기업과의 궁합을 계산하는 중이에요',
-    '거의 다 됐어요!',
+    { at: 0, text: '잠깐만요, 사주를 보고 있어요' },
+    { at: 8, text: '{name}님 명식이 나왔어요', card: 'saju' },
+    { at: 18, text: '오행 분포를 계산하는 중이에요', card: 'elements' },
+    { at: 28, text: '{company} 설립일을 확인하는 중이에요' },
+    { at: 38, text: '기업 사주를 계산하는 중이에요' },
+    { at: 48, text: '{name}님과의 궁합을 보고 있어요' },
+    { at: 58, text: '{jobTitle} 직무를 살펴보는 중이에요' },
+    { at: 68, text: '거의 다 됐어요' },
+    { at: 78, text: '마무리하는 중이에요' },
   ],
-} as const
+}
 
-/** 생성 중 메시지 간격 (PRD 14.11 — 3-4초) */
-export const GENERATING_INTERVAL_MS = 3500
+export interface GeneratingVars {
+  name?: string | null
+  /** 예: '9월 12일' */
+  examDate?: string | null
+  exam?: string | null
+  company?: string | null
+  jobTitle?: string | null
+}
 
-/** 문구 총 개수 확인용 (PRD 21.10 기준 27개) */
+/**
+ * 생성 중 문구의 자리표시자를 채웁니다.
+ *
+ * 이름을 건너뛴 사람에게 "님"만 남으면 어색하므로 조사까지 함께 지웁니다.
+ * 나머지는 값이 없을 때 일반 명사로 대체합니다.
+ */
+export function fillGenerating(text: string, vars: GeneratingVars): string {
+  const out = vars.name
+    ? text.replace(/\{name\}/g, vars.name)
+    : text.replace(/\{name\}님(과의)?\s*/g, '')
+
+  return out
+    .replace(/\{examDate\}/g, vars.examDate || '시험일')
+    .replace(/\{exam\}/g, vars.exam || '시험')
+    .replace(/\{company\}/g, vars.company || '기업')
+    .replace(/\{jobTitle\}/g, vars.jobTitle || '지원하신')
+}
+
+/**
+ * 대기 화면 상한 (밀리초).
+ *
+ * 넘어가면 실패 화면(PRD 14.12)으로 바꿔 사용자가 직접 다시 누르게 합니다.
+ *
+ * 150초로 잡았다가 실측에서 되돌렸습니다. 섹션별 분량 요구를 넣은 뒤
+ * 필기가 188.7초, 면접이 121.8초 걸립니다. 150초면 필기가 전부 잘립니다.
+ * 정상 완료를 실패로 처리하는 것이 늦게 끝나는 것보다 나쁩니다.
+ *
+ * Vercel 함수 상한이 300초이므로 그보다는 낮게 둡니다.
+ */
+export const GENERATING_TIMEOUT_MS = 240_000
+
+/** 문구 총 개수 확인용 (PRD 21.10 기준 37개) */
 export const SCRIPT_COUNT =
   Object.keys(COMMON_SCRIPTS).length +
   Object.keys(INTERVIEW_SCRIPTS).length +
   Object.keys(PAID_SCRIPTS).length +
-  GENERATING_SCRIPTS.필기.length +
-  GENERATING_SCRIPTS.면접.length
+  GENERATING_STEPS.필기.length +
+  GENERATING_STEPS.면접.length

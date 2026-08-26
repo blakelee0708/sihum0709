@@ -7,13 +7,15 @@
  *   3. 검색 (필기 1회, 면접 2회)
  *   4. 설립일이 확인되면 궁합 계산, 아니면 대체 섹션으로 전환
  *   5. AI 호출
+ *   6. 분량 검증 — 목표의 70%에 못 미치면 실패로 돌립니다 (PRD 8.3)
  */
 
 import { buildFreeResult, type UserInput } from '../content/assemble'
 import { getCompatibility, type CompatibilityResult } from '../saju/compatibility'
 import { getReportDdayRange } from '../saju/fortune'
 import { generateReport } from './generate'
-import type { GenerateResult } from './provider'
+import { checkLength, type LengthCheck } from './length'
+import { GenerateError, type GenerateResult } from './provider'
 import { buildMaterial } from './prompt'
 import {
   applyMissingFoundedDate,
@@ -38,6 +40,8 @@ export interface PipelineOutput {
   searchLogs: { queryType: 'company' | 'exam'; keyword: string; success: boolean }[]
   /** 이번 생성에 쓴 검색 크레딧 합계 */
   searchCredits: number
+  /** 분량 실측. reports.total_chars에 기록합니다 */
+  length: LengthCheck
   reportType: '필기' | '면접'
   ddayRange: string
 }
@@ -113,9 +117,19 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
 
   const generated = await generateReport(material, spec)
 
+  // 목업은 자리 채움이라 분량을 재는 의미가 없습니다
+  const length = checkLength(generated.content, spec)
+  if (!generated.mock && !length.ok) {
+    throw new GenerateError(
+      '분량 미달',
+      `${length.total}자 / 목표 ${length.target}자 (${Math.round(length.ratio * 100)}%)`
+    )
+  }
+
   return {
     spec,
     generated,
+    length,
     compatibility,
     foundedDate,
     searchLogs,

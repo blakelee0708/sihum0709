@@ -10,7 +10,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 /**
  * Vercel 서버리스 최대 실행 시간 (초).
  *
- * 리포트 생성 실측이 80-180초입니다. 기본값으로는 끝나기 전에 함수가 죽습니다.
+ * 리포트 생성 실측이 필기 189초, 면접 122초입니다. 기본값으로는 끝나기 전에 함수가 죽습니다.
  * Vercel Hobby 플랜은 60초가 상한이라 이 값이 무시되고 실패합니다.
  * 출시 전 Pro 플랜이 필요합니다.
  */
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   // 이미 만든 리포트가 있으면 재호출하지 않습니다 (PRD 8.16)
   const { data: existing } = await supabase
     .from('reports')
-    .select('id, status')
+    .select('id, status, retry_count')
     .eq('query_id', query.id)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -164,6 +164,8 @@ export async function POST(req: NextRequest) {
         input_tokens: out.generated.inputTokens,
         output_tokens: out.generated.outputTokens,
         generation_ms: out.generated.generationMs,
+        // 분량 분포를 보려고 남깁니다 (PRD 8.3). 출력 원가의 근거이기도 합니다.
+        total_chars: out.length.total,
       })
       .eq('id', reportId)
 
@@ -178,7 +180,15 @@ export async function POST(req: NextRequest) {
 
     await service
       .from('reports')
-      .update({ status: 'failed', error_message: kind })
+      .update({
+        status: 'failed',
+        error_message: kind,
+        // 분량 미달은 모델이 응답은 했는데 부실한 경우입니다. 같은 프롬프트로
+        // 계속 다시 부르면 원가만 쌓이므로 첫 실패부터 횟수에 넣습니다 (PRD 8.3).
+        ...(kind === '분량 미달'
+          ? { retry_count: (existing?.retry_count ?? 0) + 1 }
+          : {}),
+      })
       .eq('id', reportId)
 
     return NextResponse.json({ id: reportId, error: kind }, { status: 500 })

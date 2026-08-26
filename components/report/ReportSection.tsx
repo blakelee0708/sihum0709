@@ -34,17 +34,27 @@ export default function ReportSection({
         {title}
       </h2>
 
-      {body && (
-        <div className="mt-3 space-y-3">
-          {body.split('\n\n').map((p, i) => (
-            <p key={i} className="text-body">
-              {p}
-            </p>
-          ))}
-        </div>
-      )}
+      {body && <ReportBody body={body} />}
 
       {children && <div className="mt-3">{children}</div>}
     </section>
+  )
+}
+
+/**
+ * 본문 문단.
+ *
+ * 명식과 캘린더는 그림이 먼저 오고 해설이 뒤에 붙으므로
+ * 순서를 바꿔 쓸 수 있게 따로 빼 두었습니다.
+ */
+export function ReportBody({ body }: { body: string }) {
+  return (
+    <div className="mt-3 space-y-3">
+      {body.split('\n\n').map((p, i) => (
+        <p key={i} className="text-body">
+          {p}
+        </p>
+      ))}
+    </div>
   )
 }
