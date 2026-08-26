@@ -1,11 +1,15 @@
 /**
- * 유료 리포트 생성 (PRD 8장, 14.11)
+ * 유료 리포트 생성 (PRD 8장, 14.11, 14.12)
  *
  * 결제가 완료된 건에 대해 호출합니다.
- * 같은 리포트를 다시 열 때는 저장된 결과를 쓰고 AI를 다시 부르지 않습니다 (PRD 8.16).
+ * 같은 리포트를 다시 열 때는 저장된 결과를 쓰고 AI를 다시 부르지 않습니다 (PRD 8.17).
+ *
+ * 생성을 기다리지 않고 리포트 id를 바로 돌려줍니다. 생성은 after()가
+ * 응답 뒤에 이어서 수행하므로 사용자가 브라우저를 닫아도 끝까지 만들어
+ * 저장됩니다 (PRD 14.12). 클라이언트는 /report/[id]에서 상태만 폴링합니다.
  */
 
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse, after, type NextRequest } from 'next/server'
 
 /**
  * Vercel 서버리스 최대 실행 시간 (초).
@@ -18,9 +22,7 @@ import { NextResponse, type NextRequest } from 'next/server'
  */
 export const maxDuration = 500
 
-import { runPipeline } from '@/lib/ai/pipeline'
-import { logSearches } from '@/lib/ai/search-log'
-import { GenerateError } from '@/lib/ai/generate'
+import { runAndSaveReport } from '@/lib/ai/run-report'
 import type { ExamPeriod, UserInput } from '@/lib/content/assemble'
 import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
 import { createClient, createServiceClient, isSupabaseConfigured } from '@/lib/supabase/server'
@@ -132,6 +134,8 @@ export async function POST(req: NextRequest) {
           report_type: query.exam_type === '면접' ? '면접' : '필기',
           dday_range: 'normal',
           status: 'pending',
+          // 좀비 판별 기준입니다 (PRD 14.12)
+          started_at: new Date().toISOString(),
         })
         .select('id')
         .single()
@@ -141,63 +145,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'insert failed' }, { status: 500 })
   }
 
-  try {
-    const out = await runPipeline({ userInput, companyName })
-
+  // 실패했던 행을 다시 쓰는 경우 상태와 시작 시각을 되돌립니다
+  if (existing?.id) {
     await service
       .from('reports')
       .update({
-        report_type: out.reportType,
-        dday_range: out.ddayRange,
-        content: {
-          sections: out.spec.sections,
-          generated: out.generated.content,
-          compatibility: out.compatibility
-            ? { score: out.compatibility.score, relation: out.compatibility.relation }
-            : null,
-          fragments: out.fragments,
-          foundedDate: out.foundedDate,
-          companyName,
-          mock: out.generated.mock,
-        },
-        status: 'completed',
+        status: 'pending',
         error_message: null,
-        // 실제 사용량을 남깁니다. Sonnet 5는 새 토크나이저를 쓰므로
-        // PRD 8.12의 원가 추정치는 하한으로 보고 여기 쌓인 값으로 검증합니다.
-        provider: out.generated.provider,
-        model: out.generated.model,
-        input_tokens: out.generated.inputTokens,
-        output_tokens: out.generated.outputTokens,
-        generation_ms: out.generated.generationMs,
-        // 분량 분포를 보려고 남깁니다 (PRD 8.3). 출력 원가의 근거이기도 합니다.
-        total_chars: out.length.total,
+        started_at: new Date().toISOString(),
       })
       .eq('id', reportId)
-
-    // 결제 내역에서 리포트로 바로 갈 수 있도록 연결합니다 (PRD 14.15)
-    await linkPayment(service, body.paymentId ?? null, user.id, reportId)
-
-    await logSearches(out.searchLogs)
-
-    return NextResponse.json({ id: reportId, mock: out.generated.mock })
-  } catch (e) {
-    const kind = e instanceof GenerateError ? e.kind : '알 수 없는 오류'
-
-    await service
-      .from('reports')
-      .update({
-        status: 'failed',
-        error_message: kind,
-        // 분량 미달은 모델이 응답은 했는데 부실한 경우입니다. 같은 프롬프트로
-        // 계속 다시 부르면 원가만 쌓이므로 첫 실패부터 횟수에 넣습니다 (PRD 8.3).
-        ...(kind === '분량 미달'
-          ? { retry_count: (existing?.retry_count ?? 0) + 1 }
-          : {}),
-      })
-      .eq('id', reportId)
-
-    return NextResponse.json({ id: reportId, error: kind }, { status: 500 })
   }
+
+  // 결제 내역에서 리포트로 바로 갈 수 있도록 먼저 연결합니다 (PRD 14.15).
+  // 생성 결과와 무관하므로 응답 전에 끝냅니다.
+  await linkPayment(service, body.paymentId ?? null, user.id, reportId)
+
+  // 응답을 먼저 보내고 생성을 이어서 수행합니다. 사용자가 나가도 계속 돌아
+  // 저장을 마칩니다 (PRD 14.12).
+  after(async () => {
+    await runAndSaveReport({
+      service,
+      reportId,
+      userInput,
+      companyName,
+      retryCount: existing?.retry_count ?? 0,
+    })
+  })
+
+  return NextResponse.json({ id: reportId, status: 'pending' })
 }
 
 /**

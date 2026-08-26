@@ -1,11 +1,13 @@
 /**
- * 사용자 재시도 (PRD 14.12)
+ * 사용자 재시도 (PRD 14.13)
  *
  * 이미 결제된 건이므로 추가 과금 없이 AI를 다시 호출합니다.
  * retry_count가 3을 넘으면 더 이상 받지 않고 문의로 안내합니다.
+ *
+ * 생성은 after()가 응답 뒤에 수행합니다. 클라이언트는 상태만 폴링합니다.
  */
 
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse, after, type NextRequest } from 'next/server'
 
 /**
  * Vercel 서버리스 최대 실행 시간 (초).
@@ -18,9 +20,7 @@ import { NextResponse, type NextRequest } from 'next/server'
  */
 export const maxDuration = 500
 
-import { runPipeline } from '@/lib/ai/pipeline'
-import { logSearches } from '@/lib/ai/search-log'
-import { GenerateError } from '@/lib/ai/generate'
+import { runAndSaveReport } from '@/lib/ai/run-report'
 import type { ExamPeriod, UserInput } from '@/lib/content/assemble'
 import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
 import { createClient, createServiceClient, isSupabaseConfigured } from '@/lib/supabase/server'
@@ -124,54 +124,26 @@ export async function POST(req: NextRequest) {
 
   await service
     .from('reports')
-    .update({ status: 'pending', retry_count: retryCount + 1 })
+    .update({
+      status: 'pending',
+      error_message: null,
+      retry_count: retryCount + 1,
+      // 좀비 판별 기준을 다시 잡습니다 (PRD 14.12)
+      started_at: new Date().toISOString(),
+    })
     .eq('id', report.id)
 
-  try {
-    const out = await runPipeline({ userInput, companyName: query.company_name })
+  // 응답을 먼저 보내고 생성을 이어서 수행합니다 (PRD 14.12).
+  // 재시도도 2-3분 걸리므로 클라이언트가 붙잡고 있지 않습니다.
+  after(async () => {
+    await runAndSaveReport({
+      service,
+      reportId: report.id,
+      userInput,
+      companyName: query.company_name,
+      retryCount: retryCount + 1,
+    })
+  })
 
-    await service
-      .from('reports')
-      .update({
-        report_type: out.reportType,
-        dday_range: out.ddayRange,
-        content: {
-          sections: out.spec.sections,
-          generated: out.generated.content,
-          compatibility: out.compatibility
-            ? { score: out.compatibility.score, relation: out.compatibility.relation }
-            : null,
-          fragments: out.fragments,
-          foundedDate: out.foundedDate,
-          companyName: query.company_name,
-          mock: out.generated.mock,
-        },
-        status: 'completed',
-        error_message: null,
-        // 실제 사용량을 남깁니다. Sonnet 5는 새 토크나이저를 쓰므로
-        // PRD 8.12의 원가 추정치는 하한으로 보고 여기 쌓인 값으로 검증합니다.
-        provider: out.generated.provider,
-        model: out.generated.model,
-        input_tokens: out.generated.inputTokens,
-        output_tokens: out.generated.outputTokens,
-        generation_ms: out.generated.generationMs,
-        // 분량 분포를 보려고 남깁니다 (PRD 8.3). 출력 원가의 근거이기도 합니다.
-        total_chars: out.length.total,
-      })
-      .eq('id', report.id)
-
-    // 재시도도 검색 크레딧을 씁니다 (PRD 22.14)
-    await logSearches(out.searchLogs)
-
-    return NextResponse.json({ id: report.id, mock: out.generated.mock })
-  } catch (e) {
-    const kind = e instanceof GenerateError ? e.kind : '알 수 없는 오류'
-
-    await service
-      .from('reports')
-      .update({ status: 'failed', error_message: kind })
-      .eq('id', report.id)
-
-    return NextResponse.json({ id: report.id, error: kind }, { status: 500 })
-  }
+  return NextResponse.json({ id: report.id, status: 'pending' })
 }

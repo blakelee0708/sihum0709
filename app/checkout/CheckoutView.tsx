@@ -16,7 +16,6 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 
 import GeneratingChat from '@/components/chat/GeneratingChat'
-import FailedState from '@/components/report/FailedState'
 import { PRICE } from '@/components/result/LockedCTA'
 import {
   PAID_SESSION_KEY,
@@ -24,7 +23,6 @@ import {
   toUserInput,
   type Answers,
 } from '@/lib/content/chat-flow'
-import { GENERATING_TIMEOUT_MS } from '@/lib/content/chat-scripts'
 import { DDAY_NOTICE } from '@/lib/ai/spec'
 import { getReportDdayRange, diffDays } from '@/lib/saju/fortune'
 import { parseLocalDateTime } from '@/lib/saju/calculate'
@@ -46,8 +44,6 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
   const [coupon, setCoupon] = useState('')
   const [phase, setPhase] = useState<Phase>('ready')
   const [error, setError] = useState<string | null>(null)
-  // 타임아웃 후 다시 시도할 때 그대로 씁니다
-  const [pending, setPending] = useState<{ qid: string; paymentId: string | null } | null>(null)
 
   // 명식과 오행 분포는 AI 없이 코드가 즉시 계산합니다. 대기 화면에서 먼저 보여줍니다.
   const free = useMemo(() => (input ? buildFreeResult(input) : null), [input])
@@ -132,8 +128,7 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
         ddayRange: ddayRange ?? undefined,
       })
 
-      // 3. 리포트 생성
-      setPending({ qid, paymentId })
+      // 3. 리포트 생성 시작 (서버가 끝까지 수행)
       await requestReport(qid, paymentId)
     } catch {
       setPhase('error')
@@ -144,46 +139,36 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
   /**
    * 리포트 생성 요청.
    *
-   * 이미 만들어진 리포트가 있으면 서버가 그것을 그대로 돌려주므로(PRD 8.16)
-   * 타임아웃 후 다시 눌러도 두 번 생성되지 않습니다.
+   * 서버가 reports 행을 만들고 id를 바로 돌려줍니다. 생성은 응답 뒤에
+   * 이어서 수행되므로 여기서 기다리지 않습니다 (PRD 14.12).
+   *
+   * 이미 만들어진 리포트가 있으면 서버가 그것을 그대로 돌려줍니다 (PRD 8.17).
    */
   async function requestReport(qid: string, paymentId: string | null) {
     setPhase('generating')
 
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), GENERATING_TIMEOUT_MS)
+    const repRes = await fetch('/api/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queryId: qid, companyName, paymentId }),
+    })
 
-    let repJson: { id?: string; error?: string }
-    try {
-      const repRes = await fetch('/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ queryId: qid, companyName, paymentId }),
-        signal: controller.signal,
-      })
-      repJson = (await repRes.json().catch(() => ({}))) as { id?: string; error?: string }
-    } catch (e) {
-      // 상한을 넘겼습니다. 서버는 계속 돌고 있을 수 있으므로 결제를 되돌리지 않고
-      // 다시 시도하게 둡니다 (PRD 14.12).
-      if (e instanceof DOMException && e.name === 'AbortError') {
-        setPhase('timeout')
-        return
-      }
-      throw e
-    } finally {
-      clearTimeout(timer)
+    const repJson = (await repRes.json().catch(() => ({}))) as {
+      id?: string
+      error?: string
     }
 
-    // 생성에 실패해도 리포트 행은 만들어졌으므로 실패 화면으로 보냅니다
+    // 생성이 시작됐으면 id가 옵니다. 진행 상황은 리포트 화면이 보여줍니다.
     if (repJson.id) {
-      router.push(`/report/${repJson.id}`)
+      router.replace(`/report/${repJson.id}`)
       return
     }
 
     throw new Error(repJson.error ?? 'report')
   }
 
-  // 결제가 끝나고 생성을 기다리는 동안 (PRD 14.11)
+  // 생성 시작 요청을 보내는 짧은 동안만 이 화면이 뜹니다.
+  // 실제 대기 화면은 /report/[id]가 보여줍니다 (PRD 14.12).
   if (phase === 'generating' && input) {
     return (
       <GeneratingChat
@@ -197,20 +182,6 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
         }}
         saju={free?.saju ?? null}
         profile={free?.profile ?? null}
-      />
-    )
-  }
-
-  if (phase === 'timeout' && pending) {
-    return (
-      <FailedState
-        headline="리포트가 아직 안 나왔어요"
-        description={[
-          '결제는 정상 처리되었습니다.',
-          '만드는 데 예상보다 오래 걸리고 있어요.',
-          '아래 버튼으로 다시 시도하거나 문의를 남겨주세요.',
-        ]}
-        onRetry={() => requestReport(pending.qid, pending.paymentId)}
       />
     )
   }

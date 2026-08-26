@@ -26,6 +26,7 @@ import {
 import { getMonthFlow } from '@/lib/saju/fortune'
 import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
 import { getReportSpec, type SectionSpec } from '@/lib/ai/spec'
+import { isZombie } from '@/lib/ai/run-report'
 import type { ReportDdayRange } from '@/lib/saju/fortune'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server'
 
@@ -56,6 +57,9 @@ interface ReportRow {
   content: ReportContent | null
   status: string | null
   retry_count: number | null
+  /** 생성 시작 시각. 좀비 판별에 씁니다 (PRD 14.12) */
+  started_at: string | null
+  created_at: string | null
 }
 
 interface QueryRow {
@@ -93,7 +97,9 @@ export default async function ReportPage({
 
   const { data: report } = await supabase
     .from('reports')
-    .select('id, user_id, query_id, report_type, dday_range, content, status, retry_count')
+    .select(
+      'id, user_id, query_id, report_type, dday_range, content, status, retry_count, started_at, created_at'
+    )
     .eq('id', id)
     .maybeSingle<ReportRow>()
 
@@ -111,8 +117,24 @@ export default async function ReportPage({
 
   const reportType = report.report_type === '면접' ? '면접' : '필기'
 
+  // PRD 14.12 재진입 처리 — status로 분기합니다
   if (report.status === 'failed') {
     return <FailedState reportId={report.id} retryCount={report.retry_count ?? 0} />
+  }
+
+  // 환불된 건은 열지 않습니다
+  if (report.status === 'refunded') {
+    return (
+      <FailedState
+        reportId={report.id}
+        retryCount={3}
+        headline="환불된 리포트예요"
+        description={[
+          '이 리포트는 환불 처리되었습니다.',
+          '다시 필요하시면 새로 결제해 주세요.',
+        ]}
+      />
+    )
   }
 
   // 계산 섹션은 저장하지 않고 매번 다시 계산합니다. 같은 입력이면 같은 값입니다.
@@ -137,10 +159,16 @@ export default async function ReportPage({
 
   // 명식과 오행 분포는 AI 없이도 이미 값이 있으므로 대기 중에 먼저 보여줍니다 (PRD 14.11)
   if (report.status !== 'completed' || !report.content) {
+    // 서버가 중간에 죽으면 pending인 채로 남습니다. started_at으로 판별합니다.
+    const base = report.started_at ?? report.created_at
+    const elapsedMs = base ? Date.now() - new Date(base).getTime() : 0
+
     return (
       <GeneratingState
         reportId={report.id}
         retryCount={report.retry_count ?? 0}
+        zombie={isZombie(report.started_at, report.created_at)}
+        elapsedMs={elapsedMs}
         reportType={reportType}
         vars={{
           name: query.name,
