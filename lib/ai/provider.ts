@@ -58,7 +58,28 @@ export function getMaxTokens(): number {
  * 병목이었습니다. 검색은 2초라 병목이 아닙니다. 따라서 effort를 내려
  * 사고량을 줄입니다.
  *
- * 면접은 검색 결과를 읽고 회사·직무를 엮어야 해서 필기보다 한 단계 높입니다.
+ * ── 둘 다 low인 이유 (실측 8건, test/report-output-round1.md · round2.md) ──
+ *
+ * 처음에는 면접을 medium으로 두었습니다. 검색 결과를 읽고 회사·직무를
+ * 엮어야 하니 한 단계 높여야 한다고 봤습니다. 재 보니 그렇지 않았습니다.
+ *
+ *   면접 medium   154초  222원  5,188자   ← 원가 목표 220원을 넘김
+ *   면접 low       67초   99원  4,787자
+ *   필기 low       59초   87원  4,213자
+ *
+ * low에서도 오행 수치, 십신, 12지지 관계, 궁합 점수, 검색 결과 반영이
+ * 전부 계산값과 맞았습니다. 생성물을 직접 읽어 확인했습니다.
+ * 떨어지는 것은 분량 하나뿐이고, 그것도 하한의 98퍼센트입니다
+ * (실패 임계는 하한의 70퍼센트 — length.ts).
+ *
+ * 시간과 원가를 반으로 줄이는 대가로 분량 2퍼센트를 내주는 거래라
+ * low를 씁니다. 분량 하한 준수가 더 중요해지면 환경변수 한 줄로
+ * 되돌릴 수 있습니다.
+ *
+ *   AI_EFFORT_INTERVIEW=medium
+ *
+ * 분량은 effort가 아니라 프롬프트로 끌어올리는 것이 맞습니다. 섹션별
+ * 하한을 지키게 만드는 쪽이 원가를 두 배로 물지 않는 방법입니다.
  */
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
@@ -66,7 +87,7 @@ const EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max']
 
 const DEFAULT_EFFORT: Record<ReportType, Effort> = {
   필기: 'low',
-  면접: 'medium',
+  면접: 'low',
 }
 
 function parseEffort(value: string | undefined): Effort | null {
