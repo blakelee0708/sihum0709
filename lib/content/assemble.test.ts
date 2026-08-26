@@ -206,13 +206,13 @@ describe('생성 중 대기 화면 (PRD 14.11, 21.11)', () => {
     }
   })
 
-  it('간격이 목표 소요에 맞는다 — 필기 10초, 면접 14초', () => {
-    expect(GENERATING_INTERVAL_SEC.필기).toBe(10)
-    expect(GENERATING_INTERVAL_SEC.면접).toBe(14)
+  it('간격이 실측 소요에 맞는다 — 필기 18초, 면접 20초', () => {
+    expect(GENERATING_INTERVAL_SEC.필기).toBe(18)
+    expect(GENERATING_INTERVAL_SEC.면접).toBe(20)
 
-    // 목표 소요는 필기 90초, 면접 130초입니다
-    expect(generatingSpanSec('필기')).toBe(80)
-    expect(generatingSpanSec('면접')).toBe(112)
+    // 실측 소요는 필기 144초, 면접 173초입니다 (effort medium)
+    expect(generatingSpanSec('필기')).toBe(144)
+    expect(generatingSpanSec('면접')).toBe(160)
   })
 
   it('명식은 2번, 오행 분포는 3번 문구에 붙는다', () => {

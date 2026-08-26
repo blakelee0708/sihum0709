@@ -102,16 +102,19 @@ describe('parseSections', () => {
 })
 
 describe('getEffort', () => {
-  it('기본값은 필기 low, 면접 medium이다', () => {
+  it('기본값은 둘 다 medium이다', () => {
+    // low에서는 섹션 하한 미달이 회당 1~4개 남습니다 (실측)
     delete process.env.AI_EFFORT_WRITTEN
     delete process.env.AI_EFFORT_INTERVIEW
-    expect(getEffort('필기')).toBe('low')
+    expect(getEffort('필기')).toBe('medium')
     expect(getEffort('면접')).toBe('medium')
   })
 
   it('환경변수로 덮어쓴다', () => {
     process.env.AI_EFFORT_WRITTEN = 'HIGH'
     expect(getEffort('필기')).toBe('high')
+    process.env.AI_EFFORT_WRITTEN = 'low'
+    expect(getEffort('필기')).toBe('low')
     delete process.env.AI_EFFORT_WRITTEN
   })
 

@@ -5,8 +5,9 @@
  *   RUN_REPORT_SAMPLE=1 npx vitest run test/report-output.test.ts
  *
  * 옵션
- *   ONLY=면접   한쪽만
- *   RUNS=2      방식마다 몇 번 돌릴지 (기본 2)
+ *   ONLY=written | interview   한쪽만 (필기 / 면접도 받지만 셸 인코딩 문제로
+ *                              한글 값을 주면 워커가 죽는 경우가 있습니다)
+ *   RUNS=2                     방식마다 몇 번 돌릴지 (기본 2)
  *
  * 키가 없거나 플래그가 없으면 통째로 건너뜁니다. 실제 과금이 발생하고
  * 한 번에 여러 분이 걸리므로 기본 테스트에 섞지 않습니다.
@@ -20,7 +21,12 @@ import { describe, expect, it } from 'vitest'
 
 import { runPipeline } from '../lib/ai/pipeline'
 import { checkLength } from '../lib/ai/length'
-import { getEffort, getMaxTokens } from '../lib/ai/provider'
+import {
+  getEffort,
+  getMaxTokens,
+  getParseRepairCount,
+  resetParseRepairCount,
+} from '../lib/ai/provider'
 import { SHIPSIN_KEYS } from '../lib/saju/shipsin'
 import { BRANCHES } from '../lib/saju/constants'
 import type { UserInput } from '../lib/content/assemble'
@@ -56,10 +62,10 @@ function won(inputTokens: number, outputTokens: number): number {
 }
 
 /** 지시받은 목표 소요 (초) */
-const TIME_GOAL: Record<'필기' | '면접', number> = { 필기: 120, 면접: 160 }
+const TIME_GOAL: Record<'필기' | '면접', number> = { 필기: 90, 면접: 170 }
 
 /** 지시받은 원가 목표 (원) */
-const COST_GOAL: Record<'필기' | '면접', number> = { 필기: 150, 면접: 220 }
+const COST_GOAL: Record<'필기' | '면접', number> = { 필기: 120, 면접: 250 }
 
 const WRITTEN: UserInput = {
   name: '김민준',
@@ -254,6 +260,13 @@ function render(rows: Measured[]): string {
   )
   lines.push('')
 
+  const repairs = getParseRepairCount()
+  lines.push(
+    `JSON 복구 — 제어문자 ${repairs.escaped}회 · 키로 긁어내기 ${repairs.loose}회.` +
+      ' 0회가 아니면 프롬프트의 이스케이프 지시가 안 먹히고 있는 것입니다.'
+  )
+  lines.push('')
+
   lines.push('## 요약')
   lines.push('')
   lines.push(
@@ -343,18 +356,22 @@ describe.skipIf(!ENABLED)('리포트 생성 실측 (PRD 8.3, 8.4, 8.13)', () => 
   it(
     '필기와 면접을 각각 여러 번 생성하고 test/report-output.md에 기록한다',
     async () => {
-      const only = process.env.ONLY
+      // ONLY에 한글을 주면 셸 인코딩 때문에 워커가 죽는 경우가 있어
+      // ASCII 별칭을 함께 받습니다.
+      const only = process.env.ONLY?.trim().toLowerCase()
+      const wantWritten = !only || only === 'written' || only === '필기'
+      const wantInterview = !only || only === 'interview' || only === '면접'
+
       const runs = Number(process.env.RUNS) || 2
       const rows: Measured[] = []
+      resetParseRepairCount()
 
       for (let n = 1; n <= runs; n += 1) {
-        if (!only || only === '필기') rows.push(await measure('필기', n, WRITTEN, null))
-        if (!only || only === '면접') {
-          rows.push(await measure('면접', n, INTERVIEW, '삼성전자'))
-        }
+        if (wantWritten) rows.push(await measure('필기', n, WRITTEN, null))
+        if (wantInterview) rows.push(await measure('면접', n, INTERVIEW, '삼성전자'))
       }
 
-      const suffix = only ? `-${only}` : ''
+      const suffix = only ? `-${wantWritten ? '필기' : '면접'}` : ''
       writeFileSync(
         join(process.cwd(), 'test', `report-output${suffix}.md`),
         render(rows),
