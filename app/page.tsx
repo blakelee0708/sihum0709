@@ -62,12 +62,13 @@ export default function HomePage() {
       <Preview />
 
       <section className="px-screen pt-section">
-        <CtaLink href="/start">합격이랑 이야기하기</CtaLink>
+        {/* 히어로와 같은 문구로 통일합니다 (FIX_3 [4]-1) */}
+        <CtaLink href="/start">합격이에게 내 시험운 물어보기</CtaLink>
         <p
           className="mt-2 text-center text-label"
           style={{ color: 'var(--text-sub)' }}
         >
-          로그인 없이 바로 볼 수 있어요
+          1분이면 끝나요 · 로그인 없이
         </p>
       </section>
 
