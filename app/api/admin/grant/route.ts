@@ -8,6 +8,14 @@
 
 import { NextResponse, type NextRequest } from 'next/server'
 
+/**
+ * Vercel 서버리스 최대 실행 시간 (초).
+ *
+ * 이 라우트도 runPipeline을 돌립니다. 리포트 생성이 2-3분이라
+ * 기본값으로는 끝나기 전에 함수가 죽습니다 (PRD 15.1).
+ */
+export const maxDuration = 300
+
 import { adminDb, requireAdmin, UnauthorizedError } from '@/lib/admin/auth'
 import { GenerateError } from '@/lib/ai/generate'
 import { runPipeline } from '@/lib/ai/pipeline'
