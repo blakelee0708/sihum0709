@@ -24,6 +24,7 @@ import {
   INTERVIEW_SCRIPTS,
 } from './chat-scripts'
 import {
+  getExamPlaceholder,
   PRESET_CATEGORIES,
   getCategory,
   getExamOptions,
@@ -178,7 +179,7 @@ export function getSteps(answers: Answers): Step[] {
       id: 'examName',
       question: [...COMMON_SCRIPTS.examNameFree],
       widget: 'text',
-      placeholder: '예) 국가직 9급 공무원, LEET, 토익',
+      placeholder: getExamPlaceholder(category, answers.subGroup),
       icon: 'keyboard',
     })
   } else {
@@ -198,7 +199,7 @@ export function getSteps(answers: Answers): Step[] {
         value: e,
         label: e,
       })),
-      placeholder: '예) 국가직 9급 공무원, LEET, 토익',
+      placeholder: getExamPlaceholder(category, answers.subGroup),
       icon: 'keyboard',
     })
   }

@@ -123,6 +123,25 @@ export function getSubGroup(
   return category.subGroups.find((g) => g.id === subGroupId)
 }
 
+/**
+ * 직접 입력창의 예시 문구 (PRD 10.3).
+ *
+ * 대분류의 시험명 세 개를 가져다 씁니다. 전에는 모든 분류에서
+ * "예) 국가직 9급 공무원, LEET, 토익"이 나왔습니다. 기업 필기를 고른
+ * 사람에게 공무원 시험을 예시로 보여주면 잘못 골랐나 싶어집니다.
+ *
+ * 하위 그룹이 있으면 그 그룹의 목록을 씁니다. 어학을 골랐는데
+ * 자격증 예시가 나오면 안 됩니다.
+ */
+export function getExamPlaceholder(
+  category: PresetCategory | undefined,
+  subGroupId?: string
+): string {
+  const examples = getExamOptions(category, subGroupId).slice(0, 3)
+  if (examples.length === 0) return '예) 국가직 9급 공무원, LEET, 토익'
+  return `예) ${examples.join(', ')}`
+}
+
 /** 대분류가 제공하는 시험명 목록. 하위 그룹이 있으면 그 그룹의 목록입니다 */
 export function getExamOptions(
   category: PresetCategory | undefined,
