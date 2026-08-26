@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from 'next'
 import { pretendard } from './fonts/pretendard'
 import './globals.css'
 import TabBar, { TabBarSpacer } from '@/components/layout/TabBar'
+import { getSiteUrl } from '@/lib/site-url'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
-  ),
+  // 빈 환경변수를 그대로 new URL에 넣으면 빌드가 죽습니다 (lib/site-url.ts)
+  metadataBase: new URL(getSiteUrl()),
   title: '시험사주 · 오늘의 시험운',
   description:
     '생년월일과 시험 날짜로 그날의 흐름을 봅니다. 시험 전 7일 기운, 나에게 맞는 시험 방식, 시작 시간 궁합까지.',
