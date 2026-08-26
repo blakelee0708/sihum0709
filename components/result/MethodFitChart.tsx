@@ -7,6 +7,7 @@
  * 지금 준비하는 방식은 강조해서 표시합니다.
  */
 
+import GrowBar from '@/components/motion/GrowBar'
 import type { MethodFit } from '@/lib/saju/fortune'
 import { EXAM_TYPE_TO_METHOD_KEY, METHOD_KEYS, type ExamType } from '@/lib/saju/constants'
 
@@ -27,7 +28,7 @@ export default function MethodFitChart({ fit, examType }: Props) {
 
   return (
     <ul className="space-y-3">
-      {METHOD_KEYS.map((key) => {
+      {METHOD_KEYS.map((key, i) => {
         const value = fit[key]
         const active = key === currentKey
         return (
@@ -46,19 +47,12 @@ export default function MethodFitChart({ fit, examType }: Props) {
                 {value}
               </span>
             </div>
-            <div
-              className="mt-1 h-2 w-full overflow-hidden"
-              style={{ background: 'var(--bg)', borderRadius: 'var(--radius-round)' }}
-              role="img"
-              aria-label={`${LABELS[key]} 적합도 ${value}점`}
-            >
-              <div
-                className="h-full"
-                style={{
-                  width: `${value}%`,
-                  background: active ? 'var(--primary)' : 'var(--border)',
-                  borderRadius: 'var(--radius-round)',
-                }}
+            <div className="mt-1">
+              <GrowBar
+                percent={value}
+                color={active ? 'var(--primary)' : 'var(--border)'}
+                index={i}
+                label={`${LABELS[key]} 적합도 ${value}점`}
               />
             </div>
           </li>

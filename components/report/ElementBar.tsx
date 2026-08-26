@@ -1,5 +1,11 @@
-/** 오행 분포 막대 (PRD 8.3 섹션 1) */
+/**
+ * 오행 분포 막대 (PRD 8.3 섹션 1)
+ *
+ * 막대가 0에서 자랍니다 (FIX_3 [9]-3). 값이 이미 채워진 채로 나타나면
+ * 그냥 그림이고, 자라면 계산된 값으로 읽힙니다.
+ */
 
+import GrowBar from '@/components/motion/GrowBar'
 import { TYPE_BADGES } from '@/lib/content/characters'
 import { ELEMENTS, type Element } from '@/lib/saju/constants'
 
@@ -14,7 +20,7 @@ export default function ElementBar({ scores, strong, weak }: Props) {
 
   return (
     <ul className="space-y-2">
-      {ELEMENTS.map((e) => {
+      {ELEMENTS.map((e, i) => {
         const badge = TYPE_BADGES[e]
         const tag = e === strong ? '강함' : e === weak ? '약함' : null
 
@@ -26,19 +32,12 @@ export default function ElementBar({ scores, strong, weak }: Props) {
               </span>
               <span style={{ color: 'var(--text-sub)' }}>{scores[e]}</span>
             </div>
-            <div
-              className="mt-1 h-2 w-full overflow-hidden"
-              style={{ background: 'var(--bg)', borderRadius: 'var(--radius-round)' }}
-              role="img"
-              aria-label={`${e} 기운 ${scores[e]}점`}
-            >
-              <div
-                className="h-full"
-                style={{
-                  width: `${(scores[e] / max) * 100}%`,
-                  background: badge.color,
-                  borderRadius: 'var(--radius-round)',
-                }}
+            <div className="mt-1">
+              <GrowBar
+                percent={(scores[e] / max) * 100}
+                color={badge.color}
+                index={i}
+                label={`${e} 기운 ${scores[e]}점`}
               />
             </div>
           </li>

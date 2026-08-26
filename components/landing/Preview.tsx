@@ -19,7 +19,9 @@
 import { Lock } from 'lucide-react'
 import Image from 'next/image'
 
+import GrowBar from '@/components/motion/GrowBar'
 import Reveal from '@/components/motion/Reveal'
+import WeekFlowBars from './WeekFlowBars'
 import { CHARACTER_NAME, TYPE_BADGES } from '@/lib/content/characters'
 
 /** D-7부터 당일까지 8일. 마지막이 시험 당일입니다 */
@@ -104,25 +106,8 @@ export default function Preview() {
           <p className="text-label" style={{ color: 'var(--text-sub)' }}>
             시험 전 7일 기운 흐름
           </p>
-          <div
-            className="mt-2 flex h-16 items-end gap-1.5"
-            role="img"
-            aria-label="시험 전 7일 기운 흐름 예시. 당일 78점"
-          >
-            {WEEK_FLOW.map((d, i) => {
-              const isExamDay = i === WEEK_FLOW.length - 1
-              return (
-                <div
-                  key={i}
-                  className="flex-1"
-                  style={{
-                    height: `${d.score}%`,
-                    background: isExamDay ? 'var(--primary)' : 'var(--border)',
-                    borderRadius: 'var(--radius-round)',
-                  }}
-                />
-              )
-            })}
+          <div className="mt-2">
+            <WeekFlowBars data={WEEK_FLOW} />
           </div>
           <div
             className="mt-1 flex justify-between text-label"
@@ -179,26 +164,18 @@ export default function Preview() {
             나에게 맞는 시험 유형
           </p>
           <ul className="mt-2 space-y-2">
-            {METHOD_FIT.map((m) => (
+            {METHOD_FIT.map((m, i) => (
               <li key={m.label}>
                 <div className="flex items-baseline justify-between text-label">
                   <span style={{ color: 'var(--text-sub)' }}>{m.label}</span>
                   <span className="font-semibold">{m.score}</span>
                 </div>
-                <div
-                  className="mt-1 h-2 w-full overflow-hidden"
-                  style={{
-                    background: 'var(--bg)',
-                    borderRadius: 'var(--radius-round)',
-                  }}
-                >
-                  <div
-                    className="h-full"
-                    style={{
-                      width: `${m.score}%`,
-                      background: 'var(--primary)',
-                      borderRadius: 'var(--radius-round)',
-                    }}
+                <div className="mt-1">
+                  <GrowBar
+                    percent={m.score}
+                    color="var(--primary)"
+                    index={i}
+                    label={`${m.label} 적합도 ${m.score}점`}
                   />
                 </div>
               </li>
