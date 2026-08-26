@@ -30,7 +30,7 @@ import { buildUserPrompt, SYSTEM_PROMPT, type PromptMaterial } from '../prompt'
 import type { ReportSpec } from '../spec'
 import {
   GenerateError,
-  MAX_TOKENS,
+  getMaxTokens,
   mockContent,
   parseSections,
   type AIProvider,
@@ -89,6 +89,8 @@ export class AnthropicProvider implements AIProvider {
       }
     }
 
+    const maxTokens = getMaxTokens()
+
     const sdk = await loadSdk()
     const Anthropic = sdk.default
 
@@ -106,7 +108,7 @@ export class AnthropicProvider implements AIProvider {
       // HTTP 타임아웃에 걸립니다. 이벤트를 쓰지는 않고 완성본만 받습니다.
       const stream = client.messages.stream({
         model,
-        max_tokens: MAX_TOKENS,
+        max_tokens: maxTokens,
         // 시스템 프롬프트는 매 요청 동일하므로 캐싱합니다 (PRD 8.12)
         system: [
           {
@@ -130,7 +132,7 @@ export class AnthropicProvider implements AIProvider {
     if (response.stop_reason === 'max_tokens') {
       throw new GenerateError(
         '출력 잘림',
-        `max_tokens(${MAX_TOKENS})에 걸려 본문이 잘렸습니다`
+        `max_tokens(${maxTokens})에 걸려 본문이 잘렸습니다`
       )
     }
 

@@ -13,7 +13,7 @@ import type { AIProvider, GenerateResult, ProviderName } from './provider'
 
 export {
   GenerateError,
-  MAX_TOKENS,
+  getMaxTokens,
   parseSections,
   type GenerateErrorKind,
   type GenerateResult,

@@ -28,7 +28,18 @@ import type { PromptMaterial } from './prompt'
  *   1. 검색 결과 절단 (search.ts CONTEXT_LIMIT) — 입력 통제
  *   2. 프롬프트에 명시한 섹션별 분량 (spec.ts minChars) — 출력 통제
  */
-export const MAX_TOKENS = Number(process.env.AI_MAX_TOKENS) || 12000
+export const DEFAULT_MAX_TOKENS = 12000
+
+/**
+ * 호출 시점에 읽습니다.
+ *
+ * 모듈 로드 시점에 상수로 굳히면 .env.local을 나중에 읽어들이는 환경
+ * (테스트 러너 등)에서 덮어쓰기가 먹지 않습니다. 실제로 실측 스크립트가
+ * 기본값으로만 돌아 잘렸습니다.
+ */
+export function getMaxTokens(): number {
+  return Number(process.env.AI_MAX_TOKENS) || DEFAULT_MAX_TOKENS
+}
 
 export type ProviderName = 'anthropic' | 'deepseek'
 
@@ -74,6 +85,14 @@ export interface AIProvider {
   generate(material: PromptMaterial, spec: ReportSpec): Promise<GenerateResult>
 }
 
+/** 실패 원인을 남기되 본문 전체를 로그에 쏟지 않도록 앞뒤만 잘라 씁니다 */
+function peek(text: string): string {
+  const n = 200
+  const head = text.slice(0, n)
+  const tail = text.length > n * 2 ? text.slice(-n) : ''
+  return `길이 ${text.length} · 앞 "${head}"${tail ? ` · 뒤 "${tail}"` : ''}`
+}
+
 /**
  * 모델이 코드 블록으로 감싸거나 앞뒤에 설명을 붙이는 경우가 있어
  * 벗겨낸 뒤 파싱합니다.
@@ -85,13 +104,17 @@ export function parseSections(text: string): Record<string, string> {
 
   const start = body.indexOf('{')
   const end = body.lastIndexOf('}')
-  if (start < 0 || end < 0) throw new GenerateError('응답 파싱 오류')
+  if (start < 0 || end < 0) throw new GenerateError('응답 파싱 오류', peek(trimmed))
 
   let parsed: unknown
   try {
     parsed = JSON.parse(body.slice(start, end + 1))
-  } catch {
-    throw new GenerateError('응답 파싱 오류')
+  } catch (e) {
+    // 무엇이 왔는지 모르면 고칠 수가 없습니다. 앞뒤 일부를 남깁니다.
+    throw new GenerateError(
+      '응답 파싱 오류',
+      `${e instanceof Error ? e.message : String(e)} · ${peek(body)}`
+    )
   }
 
   if (typeof parsed !== 'object' || parsed === null) {

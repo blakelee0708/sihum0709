@@ -17,7 +17,9 @@ import { describe, expect, it } from 'vitest'
 
 import { runPipeline } from '../lib/ai/pipeline'
 import { checkLength } from '../lib/ai/length'
-import { MAX_TOKENS } from '../lib/ai/provider'
+import { getMaxTokens } from '../lib/ai/provider'
+import { SHIPSIN_KEYS } from '../lib/saju/shipsin'
+import { BRANCHES } from '../lib/saju/constants'
 import type { UserInput } from '../lib/content/assemble'
 
 /**
@@ -87,6 +89,20 @@ interface Measured {
   total: number
   target: number
   sections: { key: string; title: string; chars: number; minChars: number }[]
+  /** PRD 8.5 — 모든 섹션에 오행 수치가 있는지 */
+  sectionsWithoutNumber: string[]
+  /** PRD 5.6 — 섹션 2에 십신이 언급되는지 */
+  shipsinInPattern: string[]
+  /** PRD 8.6 — 섹션 4가 12지지로 구성되는지 */
+  branchesInTimeline: string[]
+}
+
+/** 오행 이름 뒤에 숫자가 붙거나, 숫자 뒤에 점/개가 붙는 형태를 찾습니다 */
+function hasElementNumber(text: string): boolean {
+  return (
+    /[목화토금수]\s*\(?[木火土金水]?\)?\s*(기운)?\s*(가|이|은|는)?\s*\d+/.test(text) ||
+    /\d+\s*(점|개)/.test(text)
+  )
 }
 
 async function measure(
@@ -116,6 +132,16 @@ async function measure(
         chars: length.sections[s.key] ?? 0,
         minChars: s.minChars,
       })),
+      sectionsWithoutNumber: out.spec.sections
+        .filter((s) => s.source !== 'calc')
+        .filter((s) => !hasElementNumber(out.generated.content[s.key] ?? ''))
+        .map((s) => s.title),
+      shipsinInPattern: SHIPSIN_KEYS.filter((k) =>
+        (out.generated.content.pattern ?? '').includes(k)
+      ),
+      branchesInTimeline: BRANCHES.filter((b) =>
+        (out.generated.content.dayTimeline ?? '').includes(`${b}시`)
+      ),
     }
   } catch (e) {
     return {
@@ -129,6 +155,9 @@ async function measure(
       total: 0,
       target: 0,
       sections: [],
+      sectionsWithoutNumber: [],
+      shipsinInPattern: [],
+      branchesInTimeline: [],
     }
   }
 }
@@ -138,7 +167,7 @@ function render(rows: Measured[]): string {
 
   lines.push('# 리포트 생성 실측')
   lines.push('')
-  lines.push(`모델 \`${process.env.AI_MODEL ?? 'claude-sonnet-5'}\` · max_tokens ${MAX_TOKENS}`)
+  lines.push(`모델 \`${process.env.AI_MODEL ?? 'claude-sonnet-5'}\` · max_tokens ${getMaxTokens()}`)
   lines.push('')
   lines.push('원가는 백만 토큰당 입력 $2 / 출력 $10, 환율 1,400원 기준입니다 (PRD 8.12).')
   lines.push('출력 토큰에는 adaptive thinking 분량이 포함됩니다.')
@@ -163,6 +192,23 @@ function render(rows: Measured[]): string {
     lines.push('')
     lines.push(`- 상태: ${r.ok ? '성공' : '실패'} (${r.note})`)
     lines.push(`- D-day 구간: ${r.ddayRange}`)
+    lines.push(
+      `- 오행 수치가 없는 섹션: ${
+        r.sectionsWithoutNumber.length ? r.sectionsWithoutNumber.join(', ') : '없음'
+      }`
+    )
+    lines.push(
+      `- 섹션 2에 언급된 십신: ${
+        r.shipsinInPattern.length ? r.shipsinInPattern.join(', ') : '없음'
+      }`
+    )
+    lines.push(
+      `- 섹션 4의 12지지: ${
+        r.branchesInTimeline.length
+          ? r.branchesInTimeline.map((b) => `${b}시`).join(', ')
+          : '없음'
+      }`
+    )
     lines.push('')
 
     if (!r.sections.length) {
@@ -188,17 +234,37 @@ describe.skipIf(!ENABLED)('리포트 생성 실측 (PRD 8.3, 8.4, 8.12)', () => 
   it(
     '필기와 면접을 각각 한 번 생성하고 test/report-output.md에 기록한다',
     async () => {
-      const rows = [
-        await measure('필기', WRITTEN, null),
-        await measure('면접', INTERVIEW, '삼성전자'),
-      ]
+      // ONLY=면접 처럼 한쪽만 다시 잴 수 있습니다. 한 번에 5분 넘게 걸립니다.
+      const only = process.env.ONLY
+      const rows: Measured[] = []
+      if (!only || only === '필기') rows.push(await measure('필기', WRITTEN, null))
+      if (!only || only === '면접') rows.push(await measure('면접', INTERVIEW, '삼성전자'))
 
-      writeFileSync(join(process.cwd(), 'test', 'report-output.md'), render(rows), 'utf-8')
+      writeFileSync(
+        join(process.cwd(), 'test', only ? `report-output-${only}.md` : 'report-output.md'),
+        render(rows),
+        'utf-8'
+      )
 
       for (const r of rows) {
-        // 잘리거나 분량이 모자라면 여기서 걸립니다
+        // 15. 잘리지 않았는지 / 16. 목표의 70%를 넘는지
         expect(r.ok, `${r.label}: ${r.note}`).toBe(true)
-        expect(r.total).toBeGreaterThan(4000)
+        expect(r.total, `${r.label} 분량`).toBeGreaterThan(r.target * 0.7)
+
+        // 17. 모든 섹션에 오행 수치 언급 (PRD 8.5)
+        expect(
+          r.sectionsWithoutNumber,
+          `${r.label} 수치 없는 섹션`
+        ).toHaveLength(0)
+
+        // 18. 섹션 2에 십신 언급 (PRD 5.6)
+        expect(r.shipsinInPattern.length, `${r.label} 십신`).toBeGreaterThanOrEqual(3)
+
+        // 19. 섹션 4가 12지지로 구성 (PRD 8.6)
+        expect(
+          r.branchesInTimeline.length,
+          `${r.label} 12지지`
+        ).toBeGreaterThanOrEqual(3)
       }
     },
     600_000
