@@ -32,6 +32,8 @@
 
 import { useReducedMotion } from 'framer-motion'
 
+import { RevealItem, RevealList } from '@/components/motion/RevealList'
+
 const ROW_1 = ['공무원 시험', '자격증', '대기업 면접', '수능', '오디션']
 const ROW_2 = ['편입', '어학', '승진 시험', '모의고사', '실기']
 
@@ -39,10 +41,13 @@ export default function Marquee() {
   const shouldReduceMotion = useReducedMotion()
 
   return (
-    <section className="pt-section">
-      <h2 className="px-screen text-card-title">세상 모든 시험</h2>
+    // 제목 → 흐르는 줄 → 문구 순으로 떠오릅니다 (FIX_3 [6]-3)
+    <RevealList as="section" className="pt-section">
+      <RevealItem as="div">
+        <h2 className="px-screen text-card-title">세상 모든 시험</h2>
+      </RevealItem>
 
-      <div className="mt-3 space-y-2">
+      <RevealItem className="mt-3 space-y-2">
         {shouldReduceMotion ? (
           <StaticRows />
         ) : (
@@ -58,15 +63,15 @@ export default function Marquee() {
             <Row items={ROW_2} direction="right" seconds={34} />
           </>
         )}
-      </div>
+      </RevealItem>
 
-      <p
+      <RevealItem
         className="mt-4 whitespace-pre-line px-screen text-body"
         style={{ color: 'var(--text-sub)' }}
       >
         {'내 인생의 터닝 포인트가 되는 날\n그날의 운과 잠재력 발휘 지수를\nAI 합격이가 봐드려요'}
-      </p>
-    </section>
+      </RevealItem>
+    </RevealList>
   )
 }
 

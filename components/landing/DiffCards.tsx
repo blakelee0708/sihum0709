@@ -8,7 +8,7 @@
  * 첫 화면에서 실망합니다. 기대를 실제보다 높이는 카피는 이탈을 만듭니다.
  */
 
-import Reveal from '@/components/motion/Reveal'
+import { RevealItem, RevealList } from '@/components/motion/RevealList'
 
 const DIFFS = [
   {
@@ -35,12 +35,12 @@ export default function DiffCards() {
     <section className="px-screen pt-section">
       <h2 className="text-card-title">다른 사주와 뭐가 다른가요?</h2>
 
-      <ul className="mt-3 space-y-card-gap">
-        {DIFFS.map((d, i) => (
-          <Reveal
+      {/* 부모에 whileInView, 자식에 variants. 스태거가 자동으로 걸립니다 */}
+      <RevealList as="ul" className="mt-3 space-y-card-gap">
+        {DIFFS.map((d) => (
+          <RevealItem
             as="li"
             key={d.title}
-            index={i}
             className="p-card"
             style={{
               background: 'var(--surface)',
@@ -55,9 +55,9 @@ export default function DiffCards() {
             >
               {d.body}
             </p>
-          </Reveal>
+          </RevealItem>
         ))}
-      </ul>
+      </RevealList>
     </section>
   )
 }

@@ -11,6 +11,12 @@
  * 늘어선 결과 화면에서 스크롤을 조금만 되돌려도 전부 다시 떠올라 어지럽습니다.
  * 읽던 자리를 놓치게 만드는 애니메이션은 없느니만 못합니다.
  *
+ * ── y 32, 스프링 ──
+ *
+ * 24px tween에서 32px 스프링으로 올렸습니다 (FIX_3 [6]-4). 24px은
+ * 스크롤 중에 눈에 잘 안 들어오고, tween은 끝에서 딱 멈춰 기계적으로
+ * 보입니다. 값은 lib/motion.ts에 모여 있습니다.
+ *
  * ── margin: '-60px' ──
  *
  * 요소가 화면 아래 경계에 닿는 순간이 아니라 60px 들어온 뒤에 시작합니다.
@@ -26,7 +32,7 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import type { CSSProperties, ReactNode } from 'react'
 
-import { EASE, REVEAL_DURATION, REVEAL_MARGIN, REVEAL_STAGGER } from '@/lib/motion'
+import { REVEAL_MARGIN, REVEAL_SPRING, REVEAL_STAGGER, REVEAL_Y } from '@/lib/motion'
 
 interface Props {
   children: ReactNode
@@ -61,14 +67,10 @@ export default function Reveal({
     <Component
       className={className}
       style={style}
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: REVEAL_Y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: REVEAL_MARGIN }}
-      transition={{
-        duration: REVEAL_DURATION,
-        delay: index * REVEAL_STAGGER,
-        ease: EASE,
-      }}
+      transition={{ ...REVEAL_SPRING, delay: index * REVEAL_STAGGER }}
     >
       {children}
     </Component>
