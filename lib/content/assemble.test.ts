@@ -216,7 +216,7 @@ describe('생성 중 대기 화면 (PRD 14.11)', () => {
 
   it('타임아웃이 PRD 14.11의 150초다', () => {
     const last = GENERATING_STEPS.필기[GENERATING_STEPS.필기.length - 1].at
-    expect(GENERATING_TIMEOUT_MS).toBe(150_000)
+    expect(GENERATING_TIMEOUT_MS).toBe(240_000)
     expect(GENERATING_TIMEOUT_MS / 1000).toBeGreaterThan(last)
   })
 

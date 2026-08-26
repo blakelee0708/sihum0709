@@ -10,11 +10,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 /**
  * Vercel 서버리스 최대 실행 시간 (초).
  *
- * 리포트 생성 실측이 필기 189초, 면접 122초입니다. 기본값으로는 끝나기 전에 함수가 죽습니다.
- * Vercel Hobby 플랜은 60초가 상한이라 이 값이 무시되고 실패합니다.
- * 출시 전 Pro 플랜이 필요합니다.
+ * 목표 소요는 필기 90초, 면접 130초입니다 (PRD 8.3, 8.4 분량 축소 후).
+ * 검색이 느린 날이나 AI 응답이 지연되는 경우가 있어 상한을 넉넉히 둡니다.
+ * Vercel Hobby는 60초가 상한이라 이 값이 무시됩니다. Pro에서 최대 800초까지
+ * 올릴 수 있고, 클라이언트 타임아웃(240초)이 먼저 걸리므로 사용자 대기
+ * 시간은 그 안에서 통제됩니다 (PRD 15.1).
  */
-export const maxDuration = 300
+export const maxDuration = 500
 
 import { runPipeline } from '@/lib/ai/pipeline'
 import { logSearches } from '@/lib/ai/search-log'
