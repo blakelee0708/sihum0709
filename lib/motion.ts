@@ -7,11 +7,23 @@
 
 export const EASE = [0.22, 1, 0.36, 1] as const
 
-/** 합격이 말풍선 등장 */
-export const bubbleMotion = {
-  initial: { opacity: 0, y: 8 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.26, ease: EASE },
+/**
+ * 합격이 말풍선 등장.
+ *
+ * 한 질문이 말풍선 여러 개로 나뉘므로 순서를 받습니다. 동시에 뜨면
+ * 나눈 의미가 없습니다.
+ *
+ * 간격은 0.32초입니다. 더 짧으면 세 개가 한 덩어리로 보이고, 더 길면
+ * 9단계를 거치는 동안 기다리는 느낌이 쌓입니다.
+ */
+export const BUBBLE_STAGGER = 0.32
+
+export function bubbleMotion(index = 0) {
+  return {
+    initial: { opacity: 0, y: 8 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.26, delay: index * BUBBLE_STAGGER, ease: EASE },
+  }
 }
 
 /** 사용자 답변 말풍선 */

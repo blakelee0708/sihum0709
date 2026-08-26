@@ -192,10 +192,24 @@ describe('대화 문구 (PRD 21.11)', () => {
     expect(GENERATING_STEPS.필기.length + GENERATING_STEPS.면접.length).toBe(18)
   })
 
-  it('말풍선은 두 줄을 넘기지 않는다', () => {
-    for (const s of Object.values(COMMON_SCRIPTS)) expect(s.length).toBeLessThanOrEqual(2)
-    for (const s of Object.values(INTERVIEW_SCRIPTS)) expect(s.length).toBeLessThanOrEqual(2)
-    for (const s of Object.values(PAID_SCRIPTS)) expect(s.length).toBeLessThanOrEqual(2)
+  it('한 질문에 말풍선 세 개를 넘기지 않는다', () => {
+    // 배열의 원소 하나가 말풍선 하나입니다. 넷을 넘기면 답하기까지
+    // 기다리는 시간이 길어집니다. 첫 인사만 세 개를 씁니다.
+    for (const s of Object.values(COMMON_SCRIPTS)) expect(s.length).toBeLessThanOrEqual(3)
+    for (const s of Object.values(INTERVIEW_SCRIPTS)) expect(s.length).toBeLessThanOrEqual(3)
+    for (const s of Object.values(PAID_SCRIPTS)) expect(s.length).toBeLessThanOrEqual(3)
+  })
+
+  it('한 말풍선은 두 줄을 넘기지 않는다', () => {
+    for (const script of [
+      ...Object.values(COMMON_SCRIPTS),
+      ...Object.values(INTERVIEW_SCRIPTS),
+      ...Object.values(PAID_SCRIPTS),
+    ]) {
+      for (const bubble of script) {
+        expect(bubble.split('\n').length, bubble).toBeLessThanOrEqual(2)
+      }
+    }
   })
 })
 

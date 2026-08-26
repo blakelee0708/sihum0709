@@ -19,6 +19,7 @@ import {
 } from '../saju/constants'
 import { EXAM_PERIODS, type ExamPeriod } from './assemble'
 import {
+  CATEGORY_INTRO,
   COMMON_SCRIPTS,
   DONE_WITHOUT_NAME,
   INTERVIEW_SCRIPTS,
@@ -185,15 +186,9 @@ export function getSteps(answers: Answers): Step[] {
   } else {
     steps.push({
       id: 'examName',
-      question: COMMON_SCRIPTS.examName.map((s) =>
-        // 하위 그룹을 골랐으면 그 이름을 씁니다. 어학을 고르고
-        // "자격증시군요!"가 나오면 안 됩니다 (PRD 10.3)
-        s.replace(
-          '{category}',
-          getSubGroup(category, answers.subGroup)?.label ??
-            stripCategoryLabel(category.label)
-        )
-      ),
+      // 대분류별 공감 문구가 있으면 그것을 씁니다 (PRD 21.11).
+      // 없는 분류는 질문만 던집니다.
+      question: [...(CATEGORY_INTRO[category.id] ?? COMMON_SCRIPTS.examName)],
       widget: 'optionsWithFreeInput',
       options: getExamOptions(category, answers.subGroup).map((e) => ({
         value: e,

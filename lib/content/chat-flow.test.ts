@@ -4,6 +4,9 @@
 
 import { describe, expect, it } from 'vitest'
 
+import { CATEGORY_INTRO } from './chat-scripts'
+import { PRESET_CATEGORIES } from './fragments'
+
 import {
   formatAnswer,
   getSteps,
@@ -353,18 +356,34 @@ describe('대분류 10개와 방식 4분류 (PRD 10.1 ~ 10.4)', () => {
   })
 })
 
-describe('하위 그룹 문구 (PRD 10.3)', () => {
-  it('하위 그룹을 고르면 그 이름으로 물어본다', () => {
-    const lang = getSteps({ category: 'cert-lang', subGroup: 'lang' })
-    const step = lang.find((s) => s.id === 'examName')!
-    expect(step.question[0]).toBe('어학시군요!')
-
-    const cert = getSteps({ category: 'cert-lang', subGroup: 'cert' })
-    expect(cert.find((s) => s.id === 'examName')!.question[0]).toBe('자격증시군요!')
+describe('대분류별 공감 문구 (PRD 21.11)', () => {
+  it('고른 분류에 맞는 공감을 먼저 건넨다', () => {
+    const gov = getSteps({ category: 'gov' })
+    const step = gov.find((s) => s.id === 'examName')!
+    expect(step.question[0]).toContain('공무원 시험 준비하시는군요')
+    expect(step.question[step.question.length - 1]).toBe('어떤 시험이에요?')
   })
 
-  it('하위 그룹이 없으면 대분류 앞부분을 쓴다', () => {
-    const gov = getSteps({ category: 'gov' })
-    expect(gov.find((s) => s.id === 'examName')!.question[0]).toBe('공무원시군요!')
+  it('오디션은 "어떤 오디션이에요?"로 묻는다', () => {
+    const step = getSteps({ category: 'audition' }).find((s) => s.id === 'examName')!
+    expect(step.question[step.question.length - 1]).toBe('어떤 오디션이에요?')
+  })
+
+  it('자격증·어학은 공감 없이 바로 묻는다', () => {
+    // 하위 그룹을 먼저 물어야 해서 말풍선이 하나 더 끼면 늘어집니다
+    const lang = getSteps({ category: 'cert-lang', subGroup: 'lang' })
+    expect(lang.find((s) => s.id === 'examName')!.question).toEqual(['어떤 시험이에요?'])
+  })
+
+  it('10개 분류 전부 공감 문구가 있다', () => {
+    for (const c of PRESET_CATEGORIES) {
+      expect(CATEGORY_INTRO[c.id], `${c.id}에 공감 문구가 없습니다`).toBeTruthy()
+    }
+  })
+
+  it('공감은 두 말풍선을 넘기지 않는다', () => {
+    for (const [id, script] of Object.entries(CATEGORY_INTRO)) {
+      expect(script.length, id).toBeLessThanOrEqual(2)
+    }
   })
 })
