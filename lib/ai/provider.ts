@@ -152,6 +152,54 @@ function peek(text: string): string {
 }
 
 /**
+ * 문자열 값 안에 이스케이프되지 않은 제어문자(주로 줄바꿈)를 고칩니다.
+ *
+ * effort를 low로 낮춘 뒤 실측 4건 중 1건이 여기서 죽었습니다. 본문은
+ * 멀쩡하고 JSON 문법만 어긋난 경우인데, 실패로 돌리면 3,900원짜리 생성을
+ * 통째로 다시 해야 합니다. 고쳐 읽는 편이 싸고 사용자 대기도 짧습니다.
+ *
+ * 문자열 안인지 밖인지만 추적하면 되므로 파서를 새로 쓰지 않습니다.
+ * 백슬래시 이스케이프를 건너뛰어야 \" 를 문자열 끝으로 오해하지 않습니다.
+ */
+function escapeRawControlChars(text: string): string {
+  const out: string[] = []
+  let inString = false
+  let escaped = false
+
+  for (const ch of text) {
+    if (escaped) {
+      out.push(ch)
+      escaped = false
+      continue
+    }
+
+    if (inString && ch === '\\') {
+      out.push(ch)
+      escaped = true
+      continue
+    }
+
+    if (ch === '"') {
+      inString = !inString
+      out.push(ch)
+      continue
+    }
+
+    if (inString && ch < ' ') {
+      if (ch === '\n') out.push('\\n')
+      else if (ch === '\r') out.push('\\r')
+      else if (ch === '\t') out.push('\\t')
+      else out.push(`\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`)
+      continue
+    }
+
+    out.push(ch)
+  }
+
+  return out.join('')
+}
+
+/**
  * 모델이 코드 블록으로 감싸거나 앞뒤에 설명을 붙이는 경우가 있어
  * 벗겨낸 뒤 파싱합니다.
  */
@@ -164,15 +212,21 @@ export function parseSections(text: string): Record<string, string> {
   const end = body.lastIndexOf('}')
   if (start < 0 || end < 0) throw new GenerateError('응답 파싱 오류', peek(trimmed))
 
+  const slice = body.slice(start, end + 1)
+
   let parsed: unknown
   try {
-    parsed = JSON.parse(body.slice(start, end + 1))
-  } catch (e) {
-    // 무엇이 왔는지 모르면 고칠 수가 없습니다. 앞뒤 일부를 남깁니다.
-    throw new GenerateError(
-      '응답 파싱 오류',
-      `${e instanceof Error ? e.message : String(e)} · ${peek(body)}`
-    )
+    parsed = JSON.parse(slice)
+  } catch {
+    try {
+      parsed = JSON.parse(escapeRawControlChars(slice))
+    } catch (e) {
+      // 무엇이 왔는지 모르면 고칠 수가 없습니다. 앞뒤 일부를 남깁니다.
+      throw new GenerateError(
+        '응답 파싱 오류',
+        `${e instanceof Error ? e.message : String(e)} · ${peek(body)}`
+      )
+    }
   }
 
   if (typeof parsed !== 'object' || parsed === null) {
