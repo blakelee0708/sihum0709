@@ -8,7 +8,7 @@
  * 2. thinking 파라미터를 수동으로 설정하지 않습니다.
  *    adaptive thinking이 기본으로 켜져 있습니다.
  * 3. max_tokens는 잘림 방지선입니다. 원가 통제 장치가 아니므로 넉넉히 둡니다.
- *    기본 20000, AI_MAX_TOKENS로 덮어씁니다.
+ *    PRD 8.13이 정한 기본값 12000. AI_MAX_TOKENS로 덮어씁니다.
  * 4. 시스템 프롬프트에 cache_control을 걸어 반복 비용을 줄입니다.
  *
  * ── 토큰 계산 주의 ──
