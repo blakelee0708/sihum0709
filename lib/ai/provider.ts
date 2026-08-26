@@ -58,28 +58,21 @@ export function getMaxTokens(): number {
  * 병목이었습니다. 검색은 2초라 병목이 아닙니다. 따라서 effort를 내려
  * 사고량을 줄입니다.
  *
- * ── 둘 다 low인 이유 (실측 8건, test/report-output-round1.md · round2.md) ──
+ * ── 필기 low, 면접 medium (실측 8건) ──
  *
- * 처음에는 면접을 medium으로 두었습니다. 검색 결과를 읽고 회사·직무를
- * 엮어야 하니 한 단계 높여야 한다고 봤습니다. 재 보니 그렇지 않았습니다.
- *
- *   면접 medium   154초  222원  5,188자   ← 원가 목표 220원을 넘김
- *   면접 low       67초   99원  4,787자
  *   필기 low       59초   87원  4,213자
+ *   면접 low       67초   99원  4,787자
+ *   면접 medium   154초  222원  5,188자
  *
- * low에서도 오행 수치, 십신, 12지지 관계, 궁합 점수, 검색 결과 반영이
- * 전부 계산값과 맞았습니다. 생성물을 직접 읽어 확인했습니다.
- * 떨어지는 것은 분량 하나뿐이고, 그것도 하한의 98퍼센트입니다
- * (실패 임계는 하한의 70퍼센트 — length.ts).
+ * 면접을 medium으로 둡니다. 222원은 판매가 3,900원의 5.7퍼센트이고
+ * 목표로 잡았던 220원과의 차이는 2원입니다. 그 2원 때문에 분량과 밀도를
+ * 내줄 이유가 없습니다. 소요도 154초로 상한 안입니다.
  *
- * 시간과 원가를 반으로 줄이는 대가로 분량 2퍼센트를 내주는 거래라
- * low를 씁니다. 분량 하한 준수가 더 중요해지면 환경변수 한 줄로
- * 되돌릴 수 있습니다.
+ * 필기는 low를 유지합니다. 87초가 아니라 59초, 87원이라 여유가 큽니다.
  *
- *   AI_EFFORT_INTERVIEW=medium
- *
- * 분량은 effort가 아니라 프롬프트로 끌어올리는 것이 맞습니다. 섹션별
- * 하한을 지키게 만드는 쪽이 원가를 두 배로 물지 않는 방법입니다.
+ * low에서도 오행 수치, 십신, 12지지 관계, 궁합 점수, 검색 결과 반영은
+ * 계산값과 맞았습니다. 정확도가 아니라 분량이 문제였고, 분량은 effort가
+ * 아니라 프롬프트의 구성 지시로 끌어올립니다 (spec.ts structure).
  */
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
@@ -87,7 +80,7 @@ const EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max']
 
 const DEFAULT_EFFORT: Record<ReportType, Effort> = {
   필기: 'low',
-  면접: 'low',
+  면접: 'medium',
 }
 
 function parseEffort(value: string | undefined): Effort | null {
@@ -221,6 +214,22 @@ function escapeRawControlChars(text: string): string {
 }
 
 /**
+ * JSON을 한 번에 못 읽어 고쳐 읽은 횟수.
+ *
+ * 프롬프트에 이스케이프 지시를 넣었지만 지켜지는지는 재 봐야 압니다.
+ * 빈도가 높으면 지시를 더 조여야 하므로 셉니다. 프로세스 단위 누적입니다.
+ */
+let repairCount = 0
+
+export function getParseRepairCount(): number {
+  return repairCount
+}
+
+export function resetParseRepairCount(): void {
+  repairCount = 0
+}
+
+/**
  * 모델이 코드 블록으로 감싸거나 앞뒤에 설명을 붙이는 경우가 있어
  * 벗겨낸 뒤 파싱합니다.
  */
@@ -241,6 +250,11 @@ export function parseSections(text: string): Record<string, string> {
   } catch {
     try {
       parsed = JSON.parse(escapeRawControlChars(slice))
+      repairCount += 1
+      console.warn(
+        `[JSON 복구] 문자열 안의 제어문자를 이스케이프해 다시 읽었습니다 ` +
+          `(누적 ${repairCount}회). 프롬프트의 이스케이프 지시가 안 먹히고 있습니다.`
+      )
     } catch (e) {
       // 무엇이 왔는지 모르면 고칠 수가 없습니다. 앞뒤 일부를 남깁니다.
       throw new GenerateError(

@@ -58,6 +58,20 @@ export async function runAndSaveReport(input: RunReportInput): Promise<void> {
           foundedDate: out.foundedDate,
           companyName,
           mock: out.generated.mock,
+          // 섹션별 글자 수 (PRD 8.3).
+          //
+          // total_chars 한 칸으로는 어느 섹션이 얇았는지 알 수 없습니다.
+          // 컬럼을 늘리지 않고 content JSON 안에 같이 넣어 두면 관리자
+          // 화면에서 리포트를 열 때 그대로 볼 수 있습니다.
+          lengths: {
+            total: out.length.total,
+            target: out.length.target,
+            targetMax: out.length.targetMax,
+            sections: out.length.sections,
+            short: out.length.short,
+            long: out.length.long,
+            effort: out.generated.effort,
+          },
         },
         status: 'completed',
         error_message: null,

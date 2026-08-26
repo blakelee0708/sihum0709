@@ -63,6 +63,31 @@ export interface PipelineOutput {
   ddayRange: string
 }
 
+/**
+ * 섹션별 글자 수를 한 줄로 남깁니다.
+ *
+ * 미달이 없으면 요약만, 있으면 어느 섹션이 몇 자 모자란지까지 씁니다.
+ * 로그를 훑어 반복 미달 섹션을 찾을 수 있어야 프롬프트를 고칠 수 있습니다.
+ */
+function logSectionLengths(type: ReportSpec['type'], length: LengthCheck): void {
+  const head =
+    `[분량] ${type} 합계 ${length.total}자 / 하한 ${length.target}자 ` +
+    `(${Math.round(length.ratio * 100)}%) · ` +
+    `미달 ${length.short.length}개 초과 ${length.long.length}개`
+
+  if (length.short.length === 0 && length.long.length === 0) {
+    console.info(head)
+    return
+  }
+
+  const detail = [
+    ...length.short.map((s) => `${s.key} ${s.chars}/${s.minChars}↓`),
+    ...length.long.map((l) => `${l.key} ${l.chars}/${l.maxChars}↑`),
+  ].join(', ')
+
+  console.warn(`${head} · ${detail}`)
+}
+
 export async function runPipeline(input: PipelineInput): Promise<PipelineOutput> {
   const result = buildFreeResult(input.userInput)
 
@@ -141,6 +166,15 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
       '분량 미달',
       `${length.total}자 / 하한 ${length.target}자 (${Math.round(length.ratio * 100)}%)`
     )
+  }
+
+  // 섹션별 분량을 항상 남깁니다 (PRD 8.3).
+  //
+  // 합계가 하한의 98퍼센트여도 섹션 절반이 하한을 밑돌면 사용자는 어떤
+  // 부분을 얇게 느낍니다. 합계만 봐서는 그것이 보이지 않습니다. 어느 섹션이
+  // 반복해서 미달인지 운영 중에도 보려고 섹션 단위로 남깁니다.
+  if (!generated.mock) {
+    logSectionLengths(spec.type, length)
   }
 
   // 넘친 것은 실패로 돌리지 않습니다. 이미 쓴 원가를 버리고 다시 쓰면

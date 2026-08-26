@@ -53,12 +53,11 @@ describe('parseSections', () => {
 })
 
 describe('getEffort', () => {
-  it('기본값은 둘 다 low다', () => {
-    // 면접을 medium으로 두면 222원이 나와 목표 220원을 넘깁니다 (실측)
+  it('기본값은 필기 low, 면접 medium이다', () => {
     delete process.env.AI_EFFORT_WRITTEN
     delete process.env.AI_EFFORT_INTERVIEW
     expect(getEffort('필기')).toBe('low')
-    expect(getEffort('면접')).toBe('low')
+    expect(getEffort('면접')).toBe('medium')
   })
 
   it('환경변수로 덮어쓴다', () => {
@@ -69,7 +68,7 @@ describe('getEffort', () => {
 
   it('없는 단계를 주면 무시하고 기본값을 쓴다', () => {
     process.env.AI_EFFORT_INTERVIEW = 'ultra'
-    expect(getEffort('면접')).toBe('low')
+    expect(getEffort('면접')).toBe('medium')
     delete process.env.AI_EFFORT_INTERVIEW
   })
 })
