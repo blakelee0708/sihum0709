@@ -1,13 +1,13 @@
 /**
  * 캐릭터와 유형 뱃지 정의 (PRD 7.1 ~ 7.4, 21.5)
  *
- * 캐릭터는 1종("운이")이며 표정만 5단계로 바뀝니다. 결정 기준은 시험 당일 운 지수입니다.
+ * 캐릭터는 1종("합격이")이며 표정만 5단계로 바뀝니다. 결정 기준은 시험 당일 운 지수입니다.
  * 유형 뱃지는 강한 오행으로 결정되며 사용자 고유 정체성을 담당합니다.
  */
 
 import type { Element } from '../saju/constants'
 
-export const CHARACTER_NAME = '운이'
+export const CHARACTER_NAME = '합격이'
 
 /** PRD 21.5 캐릭터 기본 색상 */
 export const CHARACTER_COLOR = '#8ECDF5'
@@ -33,7 +33,7 @@ export const CHARACTER_STAGES: CharacterStage[] = [
     max: 100,
     file: '/character/char-05.png',
     expression: '초승달 눈, 만세, 반짝임',
-    alt: '두 팔을 들어 만세하며 활짝 웃는 운이',
+    alt: '두 팔을 들어 만세하며 활짝 웃는 합격이',
   },
   {
     stage: 4,
@@ -41,7 +41,7 @@ export const CHARACTER_STAGES: CharacterStage[] = [
     max: 79,
     file: '/character/char-04.png',
     expression: '미소',
-    alt: '손을 흔들며 미소 짓는 운이',
+    alt: '손을 흔들며 미소 짓는 합격이',
   },
   {
     stage: 3,
@@ -49,7 +49,7 @@ export const CHARACTER_STAGES: CharacterStage[] = [
     max: 64,
     file: '/character/char-03.png',
     expression: '기본, 차분',
-    alt: '차분하게 정면을 보고 있는 운이',
+    alt: '차분하게 정면을 보고 있는 합격이',
   },
   {
     stage: 2,
@@ -57,7 +57,7 @@ export const CHARACTER_STAGES: CharacterStage[] = [
     max: 49,
     file: '/character/char-02.png',
     expression: '살짝 걱정, 처진 눈, 땀방울',
-    alt: '살짝 걱정스러운 표정의 운이',
+    alt: '살짝 걱정스러운 표정의 합격이',
   },
   {
     stage: 1,
@@ -65,7 +65,7 @@ export const CHARACTER_STAGES: CharacterStage[] = [
     max: 34,
     file: '/character/char-01.png',
     expression: '결의에 찬 눈, 주먹 쥔 파이팅 자세',
-    alt: '주먹을 쥐고 함께 힘내자는 자세의 운이',
+    alt: '주먹을 쥐고 함께 힘내자는 자세의 합격이',
   },
 ]
 

@@ -1,4 +1,4 @@
-/** 404 화면. 기본 영문 화면 대신 운이가 안내합니다 */
+/** 404 화면. 기본 영문 화면 대신 합격이가 안내합니다 */
 
 import Image from 'next/image'
 import Link from 'next/link'

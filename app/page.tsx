@@ -71,7 +71,7 @@ export default function HomePage() {
             boxShadow: 'var(--shadow-button)',
           }}
         >
-          운이랑 이야기하기
+          합격이랑 이야기하기
         </Link>
         <p
           className="mt-2 text-center text-label"

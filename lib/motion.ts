@@ -7,7 +7,7 @@
 
 export const EASE = [0.22, 1, 0.36, 1] as const
 
-/** 운이 말풍선 등장 */
+/** 합격이 말풍선 등장 */
 export const bubbleMotion = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },

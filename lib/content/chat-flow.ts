@@ -1,7 +1,7 @@
 /**
  * 대화형 입력 흐름 (PRD 14.6, 14.7)
  *
- * 자유 대화가 아니라 운이가 안내하는 형식입니다.
+ * 자유 대화가 아니라 합격이가 안내하는 형식입니다.
  * 버튼, 달력, 시간 선택기만 제공하며 사용자가 예상 밖의 입력을 할 수 없습니다.
  */
 
@@ -67,7 +67,7 @@ export interface StepOption {
 
 export interface Step {
   id: StepId
-  /** 운이 말풍선 (한 줄씩) */
+  /** 합격이 말풍선 (한 줄씩) */
   question: string[]
   widget: WidgetKind
   options?: StepOption[]

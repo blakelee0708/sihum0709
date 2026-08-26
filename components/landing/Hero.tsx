@@ -2,7 +2,7 @@
  * 홈 히어로 (PRD 14.4)
  *
  * 버튼은 스크롤 없이 보이는 위치에 둡니다.
- * 문구를 "운이랑 이야기하기"로 해서 다음 화면에 무엇이 나올지 예고합니다.
+ * 문구를 "합격이랑 이야기하기"로 해서 다음 화면에 무엇이 나올지 예고합니다.
  */
 
 'use client'
@@ -46,7 +46,7 @@ export default function Hero() {
           boxShadow: 'var(--shadow-button)',
         }}
       >
-        운이랑 이야기하기
+        합격이랑 이야기하기
       </Link>
 
       <p className="mt-2 text-label" style={{ color: 'var(--text-sub)' }}>

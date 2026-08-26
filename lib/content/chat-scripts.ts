@@ -12,7 +12,7 @@ export type ChatScript = string[]
 /** 공통 10개 */
 export const COMMON_SCRIPTS = {
   /** 대분류 */
-  category: ['안녕하세요, 운이예요.', '어떤 시험 준비하세요?'],
+  category: ['안녕하세요, 합격이예요.', '어떤 시험 준비하세요?'],
 
   /** 시험명 (대분류 선택 후). {category} 치환 */
   examName: ['{category}시군요!', '어떤 시험이에요?'],
