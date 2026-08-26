@@ -226,17 +226,23 @@ window.$RV(window.$RB)            // 강제로 꽂기
 
 | 할 일 | 필수 여부 |
 |---|---|
-| 위 ①②③ 값 결정 (max_tokens · 타임아웃 · 원가) | **필수** |
+| Supabase에 `005_report_started_at.sql` 실행 | **필수** |
 | Vercel Pro 플랜 전환 | **필수** |
 | PG 계약 | **필수** |
 | 카카오 / 구글 OAuth 등록 | **필수** |
 | 사업자 등록 · 통신판매업 신고 | **필수** |
 | `hero-body.png`, `hero-arm.png` 제작 | 선택 |
 
+004는 적용 완료했습니다. 005는 `reports.started_at` 한 컬럼입니다.
+적용하지 않으면 생성 중 서버가 죽었을 때 "만들고 있어요"가 영원히 남습니다.
+
+#### 캐릭터 팔 애니메이션 (선택)
+
 `hero-body.png`(흔드는 팔을 뺀 전신)와 `hero-arm.png`(흔드는 팔만,
 어깨 관절이 캔버스 하단 중앙)를 `public/character/`에 넣고
 `lib/content/characters.ts`의 `CHARACTER_HERO_BODY` /
-`CHARACTER_HERO_ARM`에 경로를 채우면 팔이 흔들립니다.
+`CHARACTER_HERO_ARM`에 경로를 채우면 팔 애니메이션으로 자동 전환됩니다.
+
 **없어도 서비스는 정상 동작합니다.** 지금은 기존 `hero.png`로 몸통만
 숨쉬듯 움직이고, 애니메이션 코드는 이미 들어가 있습니다.
 

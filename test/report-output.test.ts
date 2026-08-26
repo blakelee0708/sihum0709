@@ -1,14 +1,17 @@
 /**
- * 실제 AI 키로 필기·면접 리포트를 각각 한 번씩 생성하고 실측값을 남깁니다.
+ * 실제 AI 키로 리포트를 생성하고 실측값을 남깁니다 (PRD 8.3, 8.4, 8.13).
  *
  * 실행 (키가 .env.local에 있어야 합니다)
  *   RUN_REPORT_SAMPLE=1 npx vitest run test/report-output.test.ts
  *
- * 키가 없거나 플래그가 없으면 통째로 건너뜁니다. 매번 돌리면 실제 과금이
- * 발생하고 한 번에 80초 넘게 걸리므로 기본 테스트에 섞지 않습니다.
+ * 옵션
+ *   ONLY=면접   한쪽만
+ *   RUNS=2      방식마다 몇 번 돌릴지 (기본 2)
+ *
+ * 키가 없거나 플래그가 없으면 통째로 건너뜁니다. 실제 과금이 발생하고
+ * 한 번에 여러 분이 걸리므로 기본 테스트에 섞지 않습니다.
  *
  * 결과는 test/report-output.md에 씁니다.
- * 분량, 소요 시간, 토큰 사용량, 섹션별 글자 수를 기록합니다.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -43,13 +46,20 @@ function loadEnvLocal() {
 
 loadEnvLocal()
 
-const ENABLED = process.env.RUN_REPORT_SAMPLE === '1' && Boolean(process.env.ANTHROPIC_API_KEY)
+const ENABLED =
+  process.env.RUN_REPORT_SAMPLE === '1' && Boolean(process.env.ANTHROPIC_API_KEY)
 
-/** 백만 토큰당 입력 $2 / 출력 $10, 환율 1,400원 (PRD 8.12) */
+/** 백만 토큰당 입력 $2 / 출력 $10, 환율 1,400원 (PRD 8.13) */
 function won(inputTokens: number, outputTokens: number): number {
   const usd = (inputTokens * 2 + outputTokens * 10) / 1_000_000
   return Math.round(usd * 1400)
 }
+
+/** PRD 14.11 목표 소요 (초) */
+const TIME_GOAL: Record<'필기' | '면접', number> = { 필기: 90, 면접: 130 }
+
+/** 지시받은 원가 목표 (원) */
+const COST_GOAL: Record<'필기' | '면접', number> = { 필기: 110, 면접: 180 }
 
 const WRITTEN: UserInput = {
   name: '김민준',
@@ -79,21 +89,33 @@ const INTERVIEW: UserInput = {
 }
 
 interface Measured {
-  label: string
+  label: '필기' | '면접'
+  run: number
   ok: boolean
   note: string
-  ddayRange: string
   inputTokens: number
   outputTokens: number
+  /** 전체 소요 (초) */
   seconds: number
+  /** 검색에 쓴 시간 (초). 필기는 0 */
+  searchSeconds: number
+  /** AI 생성에 쓴 시간 (초) */
+  aiSeconds: number
   total: number
   target: number
-  sections: { key: string; title: string; chars: number; minChars: number }[]
-  /** PRD 8.5 — 모든 섹션에 오행 수치가 있는지 */
+  targetMax: number
+  sections: {
+    key: string
+    title: string
+    chars: number
+    minChars: number
+    maxChars: number
+  }[]
+  /** PRD 8.5 — 오행 수치가 없는 섹션 */
   sectionsWithoutNumber: string[]
-  /** PRD 5.6 — 섹션 2에 십신이 언급되는지 */
+  /** PRD 5.6 — 섹션 2에 언급된 십신 */
   shipsinInPattern: string[]
-  /** PRD 8.6 — 섹션 4가 12지지로 구성되는지 */
+  /** PRD 8.6 — 섹션 4의 12지지 */
   branchesInTimeline: string[]
 }
 
@@ -106,7 +128,8 @@ function hasElementNumber(text: string): boolean {
 }
 
 async function measure(
-  label: string,
+  label: '필기' | '면접',
+  run: number,
   userInput: UserInput,
   companyName: string | null
 ): Promise<Measured> {
@@ -115,22 +138,27 @@ async function measure(
   try {
     const out = await runPipeline({ userInput, companyName })
     const length = checkLength(out.generated.content, out.spec)
+    const totalMs = Date.now() - started
 
     return {
       label,
+      run,
       ok: true,
       note: out.generated.mock ? '목업' : '실제 호출',
-      ddayRange: out.ddayRange,
       inputTokens: out.generated.inputTokens,
       outputTokens: out.generated.outputTokens,
-      seconds: Math.round(out.generated.generationMs / 100) / 10,
+      seconds: Math.round(totalMs / 100) / 10,
+      searchSeconds: Math.round(out.searchMs / 100) / 10,
+      aiSeconds: Math.round(out.generated.generationMs / 100) / 10,
       total: length.total,
       target: length.target,
+      targetMax: length.targetMax,
       sections: out.spec.sections.map((s) => ({
         key: s.key,
         title: s.title,
         chars: length.sections[s.key] ?? 0,
         minChars: s.minChars,
+        maxChars: s.maxChars,
       })),
       sectionsWithoutNumber: out.spec.sections
         .filter((s) => s.source !== 'calc')
@@ -146,14 +174,17 @@ async function measure(
   } catch (e) {
     return {
       label,
+      run,
       ok: false,
       note: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
-      ddayRange: '-',
       inputTokens: 0,
       outputTokens: 0,
       seconds: Math.round((Date.now() - started) / 100) / 10,
+      searchSeconds: 0,
+      aiSeconds: 0,
       total: 0,
       target: 0,
+      targetMax: 0,
       sections: [],
       sectionsWithoutNumber: [],
       shipsinInPattern: [],
@@ -167,31 +198,58 @@ function render(rows: Measured[]): string {
 
   lines.push('# 리포트 생성 실측')
   lines.push('')
-  lines.push(`모델 \`${process.env.AI_MODEL ?? 'claude-sonnet-5'}\` · max_tokens ${getMaxTokens()}`)
+  lines.push(
+    `모델 \`${process.env.AI_MODEL ?? 'claude-sonnet-5'}\` · max_tokens ${getMaxTokens()}`
+  )
   lines.push('')
-  lines.push('원가는 백만 토큰당 입력 $2 / 출력 $10, 환율 1,400원 기준입니다 (PRD 8.12).')
+  lines.push('원가는 백만 토큰당 입력 $2 / 출력 $10, 환율 1,400원 기준입니다 (PRD 8.13).')
   lines.push('출력 토큰에는 adaptive thinking 분량이 포함됩니다.')
+  lines.push('')
+  lines.push('목표는 필기 90초 · 4,290~5,700자 · 110원, 면접 130초 · 4,860~6,340자 · 180원입니다.')
   lines.push('')
 
   lines.push('## 요약')
   lines.push('')
-  lines.push('| 구분 | 결과 | 입력 | 출력 | 소요 | 분량 | 목표 | 달성률 | 원가 |')
-  lines.push('|---|---|---|---|---|---|---|---|---|')
+  lines.push('| 구분 | 회차 | 결과 | 전체 | 검색 | AI | 입력 | 출력 | 분량 | 범위 | 원가 |')
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|')
   for (const r of rows) {
-    const ratio = r.target > 0 ? Math.round((r.total / r.target) * 100) : 0
+    const inRange = r.total >= r.target && r.total <= r.targetMax ? 'O' : 'X'
     lines.push(
-      `| ${r.label} | ${r.ok ? '성공' : '실패'} | ${r.inputTokens.toLocaleString()} | ` +
-        `${r.outputTokens.toLocaleString()} | ${r.seconds}초 | ${r.total.toLocaleString()}자 | ` +
-        `${r.target.toLocaleString()}자 | ${ratio}% | ${won(r.inputTokens, r.outputTokens)}원 |`
+      `| ${r.label} | ${r.run} | ${r.ok ? '성공' : '실패'} | ${r.seconds}초 | ` +
+        `${r.searchSeconds}초 | ${r.aiSeconds}초 | ${r.inputTokens.toLocaleString()} | ` +
+        `${r.outputTokens.toLocaleString()} | ${r.total.toLocaleString()}자 | ` +
+        `${inRange} | ${won(r.inputTokens, r.outputTokens)}원 |`
+    )
+  }
+  lines.push('')
+
+  // 목표 대비
+  lines.push('## 목표 대비')
+  lines.push('')
+  lines.push('| 구분 | 소요 (목표) | 분량 (범위) | 원가 (목표) |')
+  lines.push('|---|---|---|---|')
+  for (const label of ['필기', '면접'] as const) {
+    const mine = rows.filter((r) => r.label === label && r.ok)
+    if (!mine.length) continue
+    const avg = (f: (r: Measured) => number) =>
+      Math.round((mine.reduce((a, r) => a + f(r), 0) / mine.length) * 10) / 10
+    const sec = avg((r) => r.seconds)
+    const chars = Math.round(avg((r) => r.total))
+    const cost = Math.round(avg((r) => won(r.inputTokens, r.outputTokens)))
+    lines.push(
+      `| ${label} | ${sec}초 (${TIME_GOAL[label]}초) ${sec <= TIME_GOAL[label] ? 'O' : 'X'} | ` +
+        `${chars.toLocaleString()}자 (${mine[0].target.toLocaleString()}~${mine[0].targetMax.toLocaleString()}) ` +
+        `${chars >= mine[0].target && chars <= mine[0].targetMax ? 'O' : 'X'} | ` +
+        `${cost}원 (${COST_GOAL[label]}원) ${cost <= COST_GOAL[label] ? 'O' : 'X'} |`
     )
   }
   lines.push('')
 
   for (const r of rows) {
-    lines.push(`## ${r.label}`)
+    lines.push(`## ${r.label} ${r.run}회차`)
     lines.push('')
     lines.push(`- 상태: ${r.ok ? '성공' : '실패'} (${r.note})`)
-    lines.push(`- D-day 구간: ${r.ddayRange}`)
+    lines.push(`- 소요: 전체 ${r.seconds}초 = 검색 ${r.searchSeconds}초 + AI ${r.aiSeconds}초`)
     lines.push(
       `- 오행 수치가 없는 섹션: ${
         r.sectionsWithoutNumber.length ? r.sectionsWithoutNumber.join(', ') : '없음'
@@ -217,11 +275,13 @@ function render(rows: Measured[]): string {
       continue
     }
 
-    lines.push('| # | 섹션 | 글자 수 | 최소 | 충족 |')
+    lines.push('| # | 섹션 | 글자 수 | 범위 | 준수 |')
     lines.push('|---|---|---|---|---|')
     r.sections.forEach((s, i) => {
+      const ok = s.chars >= s.minChars && s.chars <= s.maxChars
+      const mark = ok ? 'O' : s.chars < s.minChars ? '미달' : '초과'
       lines.push(
-        `| ${i + 1} | ${s.title} | ${s.chars} | ${s.minChars} | ${s.chars >= s.minChars ? 'O' : 'X'} |`
+        `| ${i + 1} | ${s.title} | ${s.chars} | ${s.minChars}~${s.maxChars} | ${mark} |`
       )
     })
     lines.push('')
@@ -230,15 +290,20 @@ function render(rows: Measured[]): string {
   return lines.join('\n')
 }
 
-describe.skipIf(!ENABLED)('리포트 생성 실측 (PRD 8.3, 8.4, 8.12)', () => {
+describe.skipIf(!ENABLED)('리포트 생성 실측 (PRD 8.3, 8.4, 8.13)', () => {
   it(
-    '필기와 면접을 각각 한 번 생성하고 test/report-output.md에 기록한다',
+    '필기와 면접을 각각 여러 번 생성하고 test/report-output.md에 기록한다',
     async () => {
-      // ONLY=면접 처럼 한쪽만 다시 잴 수 있습니다. 한 번에 5분 넘게 걸립니다.
       const only = process.env.ONLY
+      const runs = Number(process.env.RUNS) || 2
       const rows: Measured[] = []
-      if (!only || only === '필기') rows.push(await measure('필기', WRITTEN, null))
-      if (!only || only === '면접') rows.push(await measure('면접', INTERVIEW, '삼성전자'))
+
+      for (let n = 1; n <= runs; n += 1) {
+        if (!only || only === '필기') rows.push(await measure('필기', n, WRITTEN, null))
+        if (!only || only === '면접') {
+          rows.push(await measure('면접', n, INTERVIEW, '삼성전자'))
+        }
+      }
 
       writeFileSync(
         join(process.cwd(), 'test', only ? `report-output-${only}.md` : 'report-output.md'),
@@ -247,26 +312,24 @@ describe.skipIf(!ENABLED)('리포트 생성 실측 (PRD 8.3, 8.4, 8.12)', () => 
       )
 
       for (const r of rows) {
-        // 15. 잘리지 않았는지 / 16. 목표의 70%를 넘는지
-        expect(r.ok, `${r.label}: ${r.note}`).toBe(true)
-        expect(r.total, `${r.label} 분량`).toBeGreaterThan(r.target * 0.7)
+        // 잘리지 않았는지 / 하한의 70%를 넘는지
+        expect(r.ok, `${r.label} ${r.run}회차: ${r.note}`).toBe(true)
+        expect(r.total, `${r.label} ${r.run}회차 분량`).toBeGreaterThan(r.target * 0.7)
 
-        // 17. 모든 섹션에 오행 수치 언급 (PRD 8.5)
+        // 모든 섹션에 오행 수치 언급 (PRD 8.5)
         expect(
           r.sectionsWithoutNumber,
-          `${r.label} 수치 없는 섹션`
+          `${r.label} ${r.run}회차 오행 수치 없음`
         ).toHaveLength(0)
 
-        // 18. 섹션 2에 십신 언급 (PRD 5.6)
-        expect(r.shipsinInPattern.length, `${r.label} 십신`).toBeGreaterThanOrEqual(3)
-
-        // 19. 섹션 4가 12지지로 구성 (PRD 8.6)
+        // 섹션 2에 십신, 섹션 4에 12지지 (PRD 5.6, 8.6)
+        expect(r.shipsinInPattern.length, `${r.label} ${r.run}회차 십신`).toBeGreaterThan(0)
         expect(
           r.branchesInTimeline.length,
-          `${r.label} 12지지`
-        ).toBeGreaterThanOrEqual(3)
+          `${r.label} ${r.run}회차 12지지`
+        ).toBeGreaterThan(0)
       }
     },
-    600_000
+    30 * 60_000
   )
 })

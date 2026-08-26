@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 리포트 생성 실패 화면 (PRD 14.12)
+ * 리포트 생성 실패 화면 (PRD 14.13)
  *
  * 재시도는 이미 결제된 건이므로 추가 과금 없이 AI를 다시 호출합니다.
  * retry_count가 3을 넘으면 재시도 버튼을 숨기고 문의만 안내합니다.
@@ -17,11 +17,11 @@ import { CHARACTER_NAME } from '@/lib/content/characters'
 const MAX_RETRY = 3
 
 interface Props {
-  /** 저장된 리포트 행이 있는 경우 (PRD 14.12 기본 경로) */
+  /** 저장된 리포트 행이 있는 경우 (PRD 14.13 기본 경로) */
   reportId?: string
   retryCount?: number
   /**
-   * 리포트 id를 아직 모르는 경우 — 결제 직후 대기 타임아웃(PRD 14.11 150초).
+   * 리포트 id를 아직 모르는 경우 — 결제 직후 대기 타임아웃(PRD 14.11 240초).
    * 넘기면 /api/report/retry 대신 이 함수로 다시 시도합니다.
    */
   onRetry?: () => Promise<void>
