@@ -45,6 +45,13 @@ export interface PipelineOutput {
   searchLogs: { queryType: 'company' | 'exam'; keyword: string; success: boolean }[]
   /** 이번 생성에 쓴 검색 크레딧 합계 */
   searchCredits: number
+  /**
+   * 검색에 쓴 시간 (밀리초). 필기는 검색이 없어 0입니다.
+   *
+   * 면접이 필기보다 오래 걸리는 원인이 검색인지 생성인지 가르려고 나눠
+   * 잽니다. 두 검색은 Promise.all로 병렬이므로 느린 쪽 하나의 시간입니다.
+   */
+  searchMs: number
   /** 분량 실측. reports.total_chars에 기록합니다 */
   length: LengthCheck
   /**
@@ -75,16 +82,19 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
 
   const searchLogs: PipelineOutput['searchLogs'] = []
   let searchCredits = 0
+  let searchMs = 0
   let compatibility: CompatibilityResult | null = null
   let foundedDate: string | null = null
   let companyInfo: string | undefined
 
   if (reportType === '면접' && input.companyName) {
-    // 검색 2회 (PRD 8.10)
+    // 검색 2회 (PRD 8.12). 병렬로 부르므로 둘 중 느린 쪽만큼만 걸립니다.
+    const searchStarted = Date.now()
     const [founded, info] = await Promise.all([
       search(SEARCH_QUERIES.companyFounded(input.companyName)),
       search(SEARCH_QUERIES.companyInfo(input.companyName)),
     ])
+    searchMs = Date.now() - searchStarted
 
     foundedDate = founded.success ? extractFoundedDate(founded.context) : null
     companyInfo = info.success ? info.context : undefined
@@ -125,10 +135,21 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
 
   // 목업은 자리 채움이라 분량을 재는 의미가 없습니다
   const length = checkLength(generated.content, spec)
+
   if (!generated.mock && !length.ok) {
     throw new GenerateError(
       '분량 미달',
-      `${length.total}자 / 목표 ${length.target}자 (${Math.round(length.ratio * 100)}%)`
+      `${length.total}자 / 하한 ${length.target}자 (${Math.round(length.ratio * 100)}%)`
+    )
+  }
+
+  // 넘친 것은 실패로 돌리지 않습니다. 이미 쓴 원가를 버리고 다시 쓰면
+  // 손해가 두 배가 됩니다. 프롬프트를 조정할 신호만 남깁니다 (PRD 8.3).
+  if (!generated.mock && length.over) {
+    console.warn(
+      `[분량 초과] ${spec.type} ${length.total}자 / 상한 ${length.targetMax}자 ` +
+        `(${Math.round((length.total / length.targetMax) * 100)}%) · ` +
+        `초과 섹션: ${length.long.map((l) => `${l.key} ${l.chars}/${l.maxChars}`).join(', ')}`
     )
   }
 
@@ -141,6 +162,7 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineOutput>
     foundedDate,
     searchLogs,
     searchCredits,
+    searchMs,
     reportType,
     ddayRange,
   }

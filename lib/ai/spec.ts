@@ -28,12 +28,17 @@ export interface SectionSpec {
   /** AI에 줄 지시 한 줄 */
   brief?: string
   /**
-   * 이 섹션에 요구하는 최소 글자 수 (PRD 8.3, 8.4).
+   * 이 섹션의 분량 범위 (PRD 8.3, 8.4).
    *
    * 문장 수로 지시하면("5-6문장") 모델이 짧은 문장으로 개수만 채웁니다.
    * 실측 분량이 목표의 60%에 그친 원인이 여기 있어 글자 수로 바꿨습니다.
+   *
+   * 하한만 두었더니 이번에는 목표의 130%를 써서 소요 시간이 필기 217초,
+   * 면접 308초까지 늘었습니다. 그래서 상한을 함께 둡니다. 모바일에서 읽는
+   * 서비스라 분량보다 밀도가 중요합니다.
    */
   minChars: number
+  maxChars: number
   /**
    * 근거로 쓸 계산값 (PRD 8.5).
    *
@@ -65,7 +70,8 @@ const SAJU: SectionSpec = {
   source: 'calc+ai',
   brief:
     '표와 막대는 화면이 그립니다. 여덟 글자가 각각 무엇을 뜻하는지, 강한 오행과 약한 오행의 점수 차가 어느 정도인지 읽는 법을 씁니다. 학습·답변 유형 해석은 다음 섹션이 맡으므로 여기서 하지 않습니다.',
-  minChars: 250,
+  minChars: 180,
+  maxChars: 250,
   basis: '8글자 오행 분포, 일간',
 }
 
@@ -75,7 +81,8 @@ const CALENDAR = (year: number, word: string): SectionSpec => ({
   source: 'calc+ai',
   brief:
     'monthFlow의 월별 점수를 근거로 한 해의 흐름을 씁니다. 점수가 높은 달과 낮은 달을 짚고, 낮은 달에는 반드시 대응 행동을 붙입니다. 재료에 없는 달의 점수를 만들지 않습니다.',
-  minChars: 300,
+  minChars: 180,
+  maxChars: 250,
   basis: '월지 오행 × 일간',
 })
 
@@ -86,7 +93,8 @@ const LUCKY: SectionSpec = {
   source: 'calc+ai',
   brief:
     '약한 오행에서 나온 색·방위·시간대·숫자를 어디에 어떻게 쓸지 씁니다. 옷 전체가 아니라 적용 위치(넥타이, 필기구, 손목)를 짚습니다. 무료에서 이미 본 숫자 하나와 피해야 할 색을 다시 설명하지 않습니다.',
-  minChars: 400,
+  minChars: 250,
+  maxChars: 330,
   basis: '약한 오행 색상, 방위, 시간대',
 }
 
@@ -98,7 +106,8 @@ const W_PATTERN: SectionSpec = {
   source: 'fragment+ai',
   brief:
     '미리 쓴 십신 조각이 앞에 놓입니다. 조각의 판정을 뒤집지 말고, 실제 십신 분포 점수와 천간·지지 위치를 반영해 확장합니다. 관성(평가받는 자리), 식상(표현), 인성(학습) 세 가지를 반드시 다룹니다.',
-  minChars: 550,
+  minChars: 350,
+  maxChars: 450,
   basis: '십신 관계 (관성, 식상, 비겁)',
 }
 
@@ -108,7 +117,8 @@ const W_STUDY_TYPE: SectionSpec = {
   source: 'ai',
   brief:
     '집중 지속 시간, 최적 학습 시간대, 암기 방식, 취약 상황, 혼자 vs 함께 다섯 항목을 다룹니다. 시험 당일이 아니라 평소 준비 방식을 씁니다.',
-  minChars: 550,
+  minChars: 350,
+  maxChars: 450,
   basis: '강한 오행 + 약한 오행',
 }
 
@@ -118,7 +128,8 @@ const W_DAY_TIMELINE: SectionSpec = {
   source: 'calc+ai',
   brief:
     'timeSlots 배열을 순서대로 다룹니다. 각 구간의 지지 오행과 일간의 십신 관계는 재료에 이미 판정돼 있으니 그대로 씁니다. 시작 이후는 종료 시각을 모르므로 "시작 직후 20분", "시작 후 40분 지점", "후반", "마지막 10분" 같은 상대 표현을 씁니다.',
-  minChars: 900,
+  minChars: 500,
+  maxChars: 650,
   basis: '12지지 오행 × 사용자 오행',
 }
 
@@ -137,7 +148,8 @@ const W_WEEK_PLAN: SectionSpec = {
   source: 'calc+ai',
   brief:
     'weekFlow의 날짜별 점수와 일진 관계를 근거로 D-7부터 당일까지 하루씩 무엇을 할지 씁니다. 점수가 낮은 날에 무리한 분량을 배치하지 않습니다. 하루당 150자 이상으로 씁니다.',
-  minChars: 1100,
+  minChars: 600,
+  maxChars: 800,
   basis: '일별 일진 × 사용자 일간',
 }
 
@@ -168,7 +180,8 @@ const W_CAUTIONS: SectionSpec = {
   source: 'ai',
   brief:
     '약한 오행에서 도출한 실수 패턴 3가지와 각각의 대응을 씁니다. 한 가지당 160자 이상으로 씁니다.',
-  minChars: 500,
+  minChars: 300,
+  maxChars: 400,
   basis: '약한 오행이 만드는 취약점',
 }
 
@@ -177,7 +190,8 @@ const W_EVE: SectionSpec = {
   title: '시험 전날 상세 타임라인',
   source: 'ai',
   brief: '저녁부터 취침까지 시간대를 나눠 씁니다.',
-  minChars: 500,
+  minChars: 300,
+  maxChars: 400,
   basis: '강한 오행의 야간 특성',
 }
 
@@ -191,7 +205,8 @@ const W_REMAINING_USE: SectionSpec = {
   source: 'ai',
   brief:
     '과목명을 쓰지 않습니다. 암기·이해·반복 세 성격으로 나누고 약한 오행을 보완하는 순서로 배분합니다. 검색으로 확인한 과목 구성이 없으므로 특정 시험의 과목 수나 배점을 지어내지 않습니다.',
-  minChars: 500,
+  minChars: 300,
+  maxChars: 400,
   basis: '약한 오행 보완 순서',
 }
 
@@ -215,7 +230,8 @@ const W_SEAT: SectionSpec = {
   source: 'calc+ai',
   brief:
     '약한 오행의 방위를 근거로 씁니다. 좌석을 고를 수 없는 시험이 많으므로 자리에서 할 수 있는 조정 위주로 씁니다.',
-  minChars: 350,
+  minChars: 200,
+  maxChars: 280,
   basis: '약한 오행 방위',
 }
 
@@ -224,7 +240,8 @@ const W_AVOID: SectionSpec = {
   title: '이 기간 피해야 할 것',
   source: 'ai',
   brief: '강한 오행이 과하게 작용할 때 생기는 행동을 중심으로 씁니다.',
-  minChars: 350,
+  minChars: 200,
+  maxChars: 280,
   basis: '강한 오행을 더 키우는 요소',
 }
 
@@ -234,7 +251,8 @@ const W_AFTER: SectionSpec = {
   source: 'ai',
   brief:
     '결과를 단정하지 않고 이후 준비 방향을 씁니다. 방식 궁합 점수와 월별 흐름을 근거로 다음 기회를 언제로 볼지 씁니다.',
-  minChars: 450,
+  minChars: 280,
+  maxChars: 360,
   basis: '방식 궁합 + 월별 흐름',
 }
 
@@ -244,7 +262,8 @@ const W_STRATEGY: SectionSpec = {
   source: 'fragment+ai',
   brief:
     '미리 쓴 반복 패턴 조각이 앞에 놓입니다. 조각이 짚은 패턴이 이 사람의 십신 분포에서 왜 나오는지 설명하고, 다음 시험에서 그 패턴을 끊는 방법을 씁니다. 섹션 2와 같은 말을 반복하지 않습니다.',
-  minChars: 500,
+  minChars: 300,
+  maxChars: 400,
   basis: '십신 관계에서 나오는 반복 패턴',
 }
 
@@ -255,6 +274,7 @@ const W_NOW_THREE: SectionSpec = {
   brief:
     '정확히 세 문장으로 씁니다. 한 문장을 80자 이상으로 써서 무엇을 왜 하는지까지 담습니다. 지금 즉시 할 수 있는 행동만 씁니다.',
   minChars: 250,
+  maxChars: 330,
   basis: '약한 오행이 만드는 취약점',
   highlight: true,
 }
@@ -272,7 +292,8 @@ const I_ANSWER_TYPE: SectionSpec = {
   source: 'ai',
   brief:
     '답변 스타일, 말하기 속도, 강한 질문 유형, 약한 질문 유형, 연습 방식, 압박 대응 여섯 항목을 다룹니다.',
-  minChars: 600,
+  minChars: 380,
+  maxChars: 480,
   basis: '강한 오행 + 약한 오행',
 }
 
@@ -297,7 +318,8 @@ const I_COMPANY: SectionSpec = {
   source: 'ai+search',
   brief:
     '검색 결과에 있는 내용만 씁니다. 확인되지 않으면 생략합니다. 부정적 평판은 쓰지 않습니다.',
-  minChars: 450,
+  minChars: 280,
+  maxChars: 380,
   basis: '기업 사주 + 검색 결과',
 }
 
@@ -307,7 +329,8 @@ const I_COMPATIBILITY: SectionSpec = {
   source: 'calc+fragment+ai',
   brief:
     '미리 쓴 관계 해석 조각이 앞에 놓이고, 기업 정보와 결합한 확장 해석만 씁니다. 조각의 판정을 뒤집지 않습니다.',
-  minChars: 600,
+  minChars: 380,
+  maxChars: 480,
   basis: '기업 일간 × 사용자 일간, 기업 오행 분포',
 }
 
@@ -325,7 +348,8 @@ const I_JOB: SectionSpec = {
   source: 'ai',
   brief:
     '직무명에서 업무 성격이 파악되면 그 수준까지 씁니다. 파악되지 않으면 일의 성격 수준으로만 씁니다. 업무 내용을 구체적으로 지어내지 않습니다.',
-  minChars: 600,
+  minChars: 380,
+  maxChars: 480,
   basis: '강한 오행 + 직무 성격',
 }
 
@@ -335,7 +359,8 @@ const I_QUESTIONS: SectionSpec = {
   source: 'ai',
   brief:
     '기출 질문을 옮기지 않습니다. 사주가 알려주는 약점에서 질문 유형을 역산해 유형 3-4개를 쓰고, 각 유형마다 들어올 수 있는 형태와 대응을 붙입니다. 강점이 드러날 유형도 함께 넣어 균형을 맞춥니다. 유형당 250자 이상으로 씁니다.',
-  minChars: 900,
+  minChars: 550,
+  maxChars: 700,
   basis: '약한 오행 + 십신 관계',
 }
 
@@ -350,7 +375,8 @@ const I_OUTFIT: SectionSpec = {
   source: 'ai',
   brief:
     '약한 오행의 색을 근거로 씁니다. 면접 복장 기본을 벗어나지 않습니다. 섹션 10과 겹치지 않도록 여기서는 복장과 소지품만 다룹니다.',
-  minChars: 400,
+  minChars: 250,
+  maxChars: 330,
   basis: '약한 오행 색상',
 }
 
@@ -359,7 +385,8 @@ const I_EVE: SectionSpec = {
   title: '면접 전날 밤',
   source: 'ai',
   brief: '저녁부터 취침까지를 씁니다.',
-  minChars: 500,
+  minChars: 300,
+  maxChars: 400,
   basis: '강한 오행의 야간 특성',
 }
 

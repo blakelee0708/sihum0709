@@ -5,7 +5,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { applyMissingFoundedDate, getReportSpec, toReportType, DDAY_NOTICE } from './spec'
-import { checkLength, countChars, targetChars, LENGTH_TOLERANCE } from './length'
+import {
+  checkLength,
+  countChars,
+  targetChars,
+  targetMaxChars,
+  LENGTH_TOLERANCE,
+  LENGTH_OVER_TOLERANCE,
+} from './length'
 import { extractFoundedDate, SEARCH_QUERIES } from './search'
 import { parseSections, GenerateError } from './generate'
 import { getReportDdayRange } from '../saju/fortune'
@@ -198,20 +205,32 @@ describe('AI 응답 파싱 (PRD 8.15)', () => {
 describe('섹션별 최소 분량 (PRD 8.3, 8.4)', () => {
   it('필기 D-8 이상이 PRD 8.3 표와 같다', () => {
     const spec = getReportSpec('필기', 'normal', 2026)
-    expect(spec.sections.map((s) => s.minChars)).toEqual([
-      250, 550, 550, 900, 1100, 500, 500, 500, 350, 400, 350, 300, 450, 500,
+    expect(spec.sections.map((s) => [s.minChars, s.maxChars])).toEqual([
+      [180, 250], [350, 450], [350, 450], [500, 650], [600, 800], [300, 400],
+      [300, 400], [300, 400], [200, 280], [250, 330], [200, 280], [180, 250],
+      [280, 360], [300, 400],
     ])
-    // PRD 8.3 본문은 "합계 6,900자 이상"이라 적었으나 표를 더하면 7,200입니다.
-    // 표의 값을 그대로 씁니다.
-    expect(spec.sections.reduce((a, x) => a + x.minChars, 0)).toBe(7200)
+    // PRD 8.3 본문은 "합계 4,000~4,800자"라 적었으나 표를 더하면
+    // 4,290~5,700입니다. 표의 값을 그대로 씁니다.
+    expect(targetChars(spec)).toBe(4290)
+    expect(targetMaxChars(spec)).toBe(5700)
   })
 
   it('면접 D-8 이상이 PRD 8.4 표와 같다', () => {
     const spec = getReportSpec('면접', 'normal', 2026)
-    expect(spec.sections.map((s) => s.minChars)).toEqual([
-      250, 550, 600, 900, 450, 600, 600, 900, 500, 400, 400, 500, 300, 450, 500,
+    expect(spec.sections.map((s) => [s.minChars, s.maxChars])).toEqual([
+      [180, 250], [350, 450], [380, 480], [500, 650], [280, 380], [380, 480],
+      [380, 480], [550, 700], [300, 400], [250, 330], [250, 330], [300, 400],
+      [180, 250], [280, 360], [300, 400],
     ])
-    expect(spec.sections.reduce((a, x) => a + x.minChars, 0)).toBe(7900)
+    expect(targetChars(spec)).toBe(4860)
+    expect(targetMaxChars(spec)).toBe(6340)
+  })
+
+  it('분량이 축소 전보다 줄었다', () => {
+    // 축소 전 하한 합계는 필기 7,200 / 면접 7,900이었고 소요가 217초 / 308초였습니다
+    expect(targetChars(getReportSpec('필기', 'normal', 2026))).toBeLessThan(7200)
+    expect(targetChars(getReportSpec('면접', 'normal', 2026))).toBeLessThan(7900)
   })
 
   it('모든 섹션에 분량과 근거가 지정돼 있다 (PRD 8.5, 8.8)', () => {
@@ -221,6 +240,7 @@ describe('섹션별 최소 분량 (PRD 8.3, 8.4)', () => {
           for (const section of getReportSpec(type, range, 2026, { hasStartTime })
             .sections) {
             expect(section.minChars, section.title).toBeGreaterThan(0)
+            expect(section.maxChars, section.title).toBeGreaterThan(section.minChars)
             expect(section.basis, section.title).toBeTruthy()
           }
         }
@@ -241,8 +261,8 @@ describe('섹션별 최소 분량 (PRD 8.3, 8.4)', () => {
     // 그림만 두면 무료 결과와 차이가 없어 짧은 해설을 붙였습니다
     expect(saju.source).toBe('calc+ai')
     expect(cal.source).toBe('calc+ai')
-    expect(saju.minChars).toBe(250)
-    expect(cal.minChars).toBe(300)
+    expect([saju.minChars, saju.maxChars]).toEqual([180, 250])
+    expect([cal.minChars, cal.maxChars]).toEqual([180, 250])
   })
 
   it('신규 섹션 2와 마지막 섹션은 조각을 앞에 둔다 (PRD 5.6, 8.18)', () => {
@@ -259,6 +279,7 @@ describe('섹션별 최소 분량 (PRD 8.3, 8.4)', () => {
 describe('분량 검증 (PRD 8.3)', () => {
   const spec = getReportSpec('필기', 'normal', 2026)
 
+  /** 각 섹션을 하한 × ratio 만큼 채웁니다 */
   function fill(ratio: number): Record<string, string> {
     const out: Record<string, string> = {}
     for (const s of spec.sections) out[s.key] = '가'.repeat(Math.round(s.minChars * ratio))
@@ -269,30 +290,51 @@ describe('분량 검증 (PRD 8.3)', () => {
     expect(countChars('  가 나  ')).toBe(3)
   })
 
-  it('목표를 채우면 통과한다', () => {
+  it('하한을 채우면 통과한다', () => {
     const r = checkLength(fill(1), spec)
-    expect(r.total).toBe(7200)
-    expect(r.target).toBe(7200)
+    expect(r.total).toBe(4290)
+    expect(r.target).toBe(4290)
+    expect(r.targetMax).toBe(5700)
     expect(r.ok).toBe(true)
+    expect(r.over).toBe(false)
     expect(r.short).toHaveLength(0)
   })
 
-  it('목표의 70% 미만이면 실패로 본다', () => {
+  it('하한의 70% 미만이면 실패로 본다', () => {
     expect(checkLength(fill(0.69), spec).ok).toBe(false)
     expect(checkLength(fill(LENGTH_TOLERANCE), spec).ok).toBe(true)
   })
 
-  it('실측 3,069자는 지금 기준으로 미달이다', () => {
-    // 프롬프트를 고치기 전 실측값입니다. 이 검증이 걸러내야 하는 대상입니다.
-    const r = checkLength({ studyType: '가'.repeat(3069) }, spec)
+  it('상한의 150%를 넘으면 경고로 표시한다 (실패는 아니다)', () => {
+    const overRatio = (spec.sections.reduce((a, s) => a + s.maxChars, 0) *
+      LENGTH_OVER_TOLERANCE) / spec.sections.reduce((a, s) => a + s.minChars, 0)
+
+    const r = checkLength(fill(overRatio + 0.1), spec)
+    expect(r.over).toBe(true)
+    // 넘쳐도 실패로 돌리지 않습니다. 이미 쓴 원가를 버리면 손해가 두 배입니다.
+    expect(r.ok).toBe(true)
+  })
+
+  it('축소 전 실측 9,000자는 이제 상한 초과로 잡힌다', () => {
+    // 하한만 두었을 때 필기가 실제로 9,000자 넘게 썼습니다
+    const r = checkLength({ studyType: '가'.repeat(9000) }, spec)
+    expect(r.over).toBe(true)
+  })
+
+  it('실측 3,069자는 지금 기준으로도 미달이다', () => {
+    const r = checkLength({ studyType: '가'.repeat(2900) }, spec)
     expect(r.ok).toBe(false)
   })
 
-  it('모자란 섹션을 짚어준다', () => {
+  it('모자란 섹션과 넘친 섹션을 각각 짚어준다', () => {
     const content = fill(1)
     content.seat = '가'.repeat(10)
+    content.weekPlan = '가'.repeat(5000)
+
     const r = checkLength(content, spec)
     expect(r.short.map((x) => x.key)).toEqual(['seat'])
-    expect(r.short[0].minChars).toBe(350)
+    expect(r.short[0].minChars).toBe(200)
+    expect(r.long.map((x) => x.key)).toEqual(['weekPlan'])
+    expect(r.long[0].maxChars).toBe(800)
   })
 })
