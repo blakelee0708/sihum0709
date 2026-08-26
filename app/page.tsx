@@ -7,8 +7,8 @@
  */
 
 import type { Metadata } from 'next'
-import Link from 'next/link'
 
+import CtaLink from '@/components/landing/CtaLink'
 import DiffCards from '@/components/landing/DiffCards'
 import Hero from '@/components/landing/Hero'
 import Preview from '@/components/landing/Preview'
@@ -62,17 +62,7 @@ export default function HomePage() {
       <Preview />
 
       <section className="px-screen pt-section">
-        <Link
-          href="/start"
-          className="flex min-h-[52px] w-full items-center justify-center text-body font-semibold text-white"
-          style={{
-            background: 'var(--button)',
-            borderRadius: 'var(--radius-button)',
-            boxShadow: 'var(--shadow-button)',
-          }}
-        >
-          합격이랑 이야기하기
-        </Link>
+        <CtaLink href="/start">합격이랑 이야기하기</CtaLink>
         <p
           className="mt-2 text-center text-label"
           style={{ color: 'var(--text-sub)' }}

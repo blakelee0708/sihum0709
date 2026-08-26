@@ -1,9 +1,15 @@
 /**
- * 결과 카드 (PRD 3.2, 21.4)
+ * 결과 카드 (PRD 3.2, 21.4, 21.12)
  *
  * 카드 모서리 24px, 안쪽 패딩 20px, 카드 사이 12px.
  * 한글 본문 행간은 1.7 이상을 유지합니다 (PRD 21.3).
+ *
+ * 스크롤 리빌을 호출부가 아니라 여기에 넣습니다. ResultView가 카드
+ * 종류에 따라 여러 갈래로 분기해서 렌더하기 때문에, 호출부에 넣으면
+ * 같은 코드를 여러 번 쓰게 되고 한 갈래를 빠뜨리기 쉽습니다.
  */
+
+import Reveal from '@/components/motion/Reveal'
 
 interface Props {
   title: string
@@ -13,7 +19,8 @@ interface Props {
 
 export default function ResultCard({ title, children, paragraphs }: Props) {
   return (
-    <article
+    <Reveal
+      as="article"
       className="p-card"
       style={{
         background: 'var(--surface)',
@@ -34,6 +41,6 @@ export default function ResultCard({ title, children, paragraphs }: Props) {
       )}
 
       {children && <div className="mt-3">{children}</div>}
-    </article>
+    </Reveal>
   )
 }

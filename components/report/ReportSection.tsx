@@ -1,4 +1,11 @@
-/** 리포트 섹션 (PRD 14.11) */
+/**
+ * 리포트 섹션 (PRD 14.11, 21.12)
+ *
+ * 스크롤 리빌은 호출부가 아니라 여기에 넣습니다. 리포트 페이지가 섹션
+ * 종류에 따라 분기해서 렌더하므로 한 갈래를 빠뜨리기 쉽습니다.
+ */
+
+import Reveal from '@/components/motion/Reveal'
 
 interface Props {
   index: number
@@ -22,7 +29,8 @@ export default function ReportSection({
   children,
 }: Props) {
   return (
-    <section
+    <Reveal
+      as="section"
       className="p-card"
       style={{
         background: 'var(--surface)',
@@ -45,7 +53,7 @@ export default function ReportSection({
       {body && <ReportBody body={body} />}
 
       {children && <div className="mt-3">{children}</div>}
-    </section>
+    </Reveal>
   )
 }
 

@@ -10,7 +10,7 @@
  * 어디서 읽다가 멈춰도 결제 경로가 있어야 합니다 (PRD 14.9).
  */
 
-import Link from 'next/link'
+import { MotionLink, useTap } from '@/components/motion/Pressable'
 import { ChevronRight, Lock } from 'lucide-react'
 
 import type { CardLock } from '@/lib/content/assemble'
@@ -25,6 +25,7 @@ interface Props {
 }
 
 export default function CardLockTeaser({ lock, href, cardId, examType }: Props) {
+  const tap = useTap()
   return (
     <div
       className="mt-4 p-4"
@@ -43,7 +44,8 @@ export default function CardLockTeaser({ lock, href, cardId, examType }: Props) 
         {lock.teaser}
       </p>
 
-      <Link
+      <MotionLink
+        whileTap={tap}
         href={href}
         onClick={() => track('card_lock_click', { examType, cardId })}
         className="mt-3 flex min-h-[44px] w-full items-center justify-center gap-1 text-body font-semibold"
@@ -55,7 +57,7 @@ export default function CardLockTeaser({ lock, href, cardId, examType }: Props) 
       >
         더 자세히 보기
         <ChevronRight size={16} aria-hidden />
-      </Link>
+      </MotionLink>
     </div>
   )
 }

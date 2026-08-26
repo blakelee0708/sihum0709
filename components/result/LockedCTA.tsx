@@ -10,7 +10,7 @@
  * 알림 받기를 노출합니다 (PRD 8.2).
  */
 
-import Link from 'next/link'
+import { MotionLink, useTap } from '@/components/motion/Pressable'
 import { Lock } from 'lucide-react'
 
 import type { ExamType } from '@/lib/saju/constants'
@@ -81,6 +81,9 @@ export default function LockedCTA({
   strongElement,
   ddayRange,
 }: Props) {
+  // 훅은 아래 조건부 return보다 먼저 불러야 합니다
+  const tap = useTap()
+
   if (examType === '실기' || examType === '오디션') {
     return (
       <section className="px-screen pt-section">
@@ -146,7 +149,8 @@ export default function LockedCTA({
           ))}
         </ul>
 
-        <Link
+        <MotionLink
+          whileTap={tap}
           href={href}
           onClick={() =>
             track('paid_cta_click', {
@@ -164,7 +168,7 @@ export default function LockedCTA({
           }}
         >
           {PRICE.toLocaleString()}원으로 전체 보기
-        </Link>
+        </MotionLink>
       </div>
     </section>
   )

@@ -8,6 +8,7 @@
  */
 
 import type { TypeBadge as Badge } from '@/lib/content/characters'
+import { MotionButton, useTap } from '@/components/motion/Pressable'
 
 interface Props {
   badge: Badge
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function TypeBadgeView({ badge, onClick, size = 'md' }: Props) {
+  const tap = useTap()
   const pad = size === 'md' ? 'px-4 py-3' : 'px-3 py-2'
 
   const content = (
@@ -46,14 +48,15 @@ export default function TypeBadgeView({ badge, onClick, size = 'md' }: Props) {
   }
 
   return (
-    <button
+    <MotionButton
       type="button"
       onClick={onClick}
+      whileTap={tap}
       aria-label={`${badge.name} 유형 설명 보기`}
       className={`flex min-h-[44px] flex-col items-center text-label ${pad}`}
       style={style}
     >
       {content}
-    </button>
+    </MotionButton>
   )
 }

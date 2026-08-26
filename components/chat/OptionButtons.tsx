@@ -12,6 +12,7 @@ import { motion } from 'framer-motion'
 import { Calendar, Clock, Keyboard } from 'lucide-react'
 
 import { optionMotion } from '@/lib/motion'
+import { useTap } from '@/components/motion/Pressable'
 import type { StepOption } from '@/lib/content/chat-flow'
 
 const ICONS = {
@@ -39,6 +40,7 @@ export default function OptionButtons({
 }: Props) {
   const twoColumn = options.length > 6
   const FreeIcon = ICONS[freeInputIcon]
+  const tap = useTap()
 
   return (
     <div className="space-y-2">
@@ -47,6 +49,7 @@ export default function OptionButtons({
           <motion.button
             key={o.value}
             {...optionMotion(i)}
+            whileTap={tap}
             type="button"
             onClick={() => onSelect(o.value)}
             className="min-h-[44px] w-full px-[14px] py-[11px] text-chat"
@@ -65,6 +68,7 @@ export default function OptionButtons({
       {freeInputLabel && onFreeInput && (
         <motion.button
           {...optionMotion(options.length)}
+          whileTap={tap}
           type="button"
           onClick={onFreeInput}
           className="flex min-h-[44px] w-full items-center justify-center gap-2 px-[14px] py-[11px] text-chat"

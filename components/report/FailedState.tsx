@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { CHARACTER_NAME } from '@/lib/content/characters'
+import { MotionButton, useTap } from '@/components/motion/Pressable'
 
 const MAX_RETRY = 3
 
@@ -47,6 +48,7 @@ export default function FailedState({
 }: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const tap = useTap()
   const [error, setError] = useState<string | null>(null)
 
   const canRetry = !hideRetry && retryCount < MAX_RETRY
@@ -120,15 +122,16 @@ export default function FailedState({
 
       <div className="mt-6 w-full space-y-2">
         {canRetry && (
-          <button
+          <MotionButton
             type="button"
             onClick={handleRetry}
             disabled={busy}
+            whileTap={busy ? undefined : tap}
             className="min-h-[52px] w-full text-body font-semibold text-white disabled:opacity-40"
             style={{ background: 'var(--button)', borderRadius: 'var(--radius-button)' }}
           >
             {busy ? '다시 만드는 중' : '다시 시도하기'}
-          </button>
+          </MotionButton>
         )}
 
         <Link

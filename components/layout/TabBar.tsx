@@ -7,7 +7,7 @@
  * 우측 상단 프로필 아이콘은 두지 않습니다. 마이페이지가 탭에 있어 중복입니다.
  */
 
-import Link from 'next/link'
+import { MotionLink, useTap } from '@/components/motion/Pressable'
 import { usePathname } from 'next/navigation'
 import { Home, Plus, User } from 'lucide-react'
 
@@ -33,6 +33,8 @@ export function shouldShowTabBar(pathname: string): boolean {
 
 export default function TabBar() {
   const pathname = usePathname()
+  // 훅은 조건부 return보다 먼저 불러야 합니다
+  const tap = useTap()
 
   if (!shouldShowTabBar(pathname)) return null
 
@@ -47,15 +49,16 @@ export default function TabBar() {
           const active = pathname === href
           return (
             <li key={href} className="flex-1">
-              <Link
+              <MotionLink
                 href={href}
+                whileTap={tap}
                 aria-current={active ? 'page' : undefined}
                 className="flex min-h-[56px] flex-col items-center justify-center gap-1"
                 style={{ color: active ? 'var(--primary)' : 'var(--text-sub)' }}
               >
                 <Icon size={22} aria-hidden />
                 <span className="text-label">{label}</span>
-              </Link>
+              </MotionLink>
             </li>
           )
         })}
