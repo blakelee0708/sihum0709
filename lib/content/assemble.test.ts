@@ -442,3 +442,17 @@ describe('무료 결과 조립', () => {
     expect(card2.paragraphs[0]).toBe(F.elementSummary[r.profile.strong])
   })
 })
+
+describe('카드 4 제목의 조사 (PRD 3.5)', () => {
+  const at = (time: string) =>
+    buildFreeResult({ ...BASE, startTime: time }, TODAY).cards.find((c) => c.id === 4)!
+      .title
+
+  it('받침 없는 시각은 "는"을 붙인다', () => {
+    expect(at('10:00')).toBe('오전 10시는 맞는 시간일까')
+  })
+
+  it('받침 있는 시각은 "은"을 붙인다', () => {
+    expect(at('14:30')).toBe('오후 2시 30분은 맞는 시간일까')
+  })
+})

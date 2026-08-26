@@ -352,3 +352,19 @@ describe('대분류 10개와 방식 4분류 (PRD 10.1 ~ 10.4)', () => {
     expect(input.examPeriod).toBe('2~3일')
   })
 })
+
+describe('하위 그룹 문구 (PRD 10.3)', () => {
+  it('하위 그룹을 고르면 그 이름으로 물어본다', () => {
+    const lang = getSteps({ category: 'cert-lang', subGroup: 'lang' })
+    const step = lang.find((s) => s.id === 'examName')!
+    expect(step.question[0]).toBe('어학시군요!')
+
+    const cert = getSteps({ category: 'cert-lang', subGroup: 'cert' })
+    expect(cert.find((s) => s.id === 'examName')!.question[0]).toBe('자격증시군요!')
+  })
+
+  it('하위 그룹이 없으면 대분류 앞부분을 쓴다', () => {
+    const gov = getSteps({ category: 'gov' })
+    expect(gov.find((s) => s.id === 'examName')!.question[0]).toBe('공무원시군요!')
+  })
+})

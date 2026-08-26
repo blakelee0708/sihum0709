@@ -174,7 +174,8 @@ function cardTitles(type: ExamType, startTimeLabel: string): Record<number, stri
     1: '{examDate}, {name}님에게 어떤 날인가',
     2: '{name}님의 사주',
     3: `${w} 전 7일 기운 흐름`,
-    4: `${startTimeLabel}은 맞는 시간일까`,
+    // "오전 10시는" / "오후 2시 30분은" — 받침에 따라 조사가 달라집니다
+    4: `${attachParticle(startTimeLabel, '은는')} 맞는 시간일까`,
     5: '{name}님은 어떤 시험에 강한가',
     6: `${venueWord(type)}에서 주의할 점`,
     7: '행운의 숫자와 피해야 할 색',

@@ -23,7 +23,12 @@ import {
   DONE_WITHOUT_NAME,
   INTERVIEW_SCRIPTS,
 } from './chat-scripts'
-import { PRESET_CATEGORIES, getCategory, getExamOptions } from './fragments'
+import {
+  PRESET_CATEGORIES,
+  getCategory,
+  getExamOptions,
+  getSubGroup,
+} from './fragments'
 
 export type StepId =
   | 'category'
@@ -180,7 +185,13 @@ export function getSteps(answers: Answers): Step[] {
     steps.push({
       id: 'examName',
       question: COMMON_SCRIPTS.examName.map((s) =>
-        s.replace('{category}', stripCategoryLabel(category.label))
+        // 하위 그룹을 골랐으면 그 이름을 씁니다. 어학을 고르고
+        // "자격증시군요!"가 나오면 안 됩니다 (PRD 10.3)
+        s.replace(
+          '{category}',
+          getSubGroup(category, answers.subGroup)?.label ??
+            stripCategoryLabel(category.label)
+        )
       ),
       widget: 'optionsWithFreeInput',
       options: getExamOptions(category, answers.subGroup).map((e) => ({
