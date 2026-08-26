@@ -108,7 +108,7 @@ export async function runAndSaveReport(input: RunReportInput): Promise<void> {
  * pending인 채로 이 시간을 넘기면 좀비로 봅니다 (PRD 14.12).
  *
  * 서버가 중간에 죽으면 status가 pending으로 남아 화면에서 영원히
- * "만들고 있어요"가 됩니다. Vercel 함수 상한이 500초이므로 10분이면
+ * "만들고 있어요"가 됩니다. Vercel 함수 상한이 300초이므로 10분이면
  * 정상 생성이 끝났어야 하는 시간입니다.
  */
 export const ZOMBIE_AFTER_MS = 10 * 60 * 1000

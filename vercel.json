@@ -1,9 +1,9 @@
 {
   "regions": ["icn1"],
   "functions": {
-    "app/api/report/route.ts": { "maxDuration": 500 },
-    "app/api/report/retry/route.ts": { "maxDuration": 500 },
-    "app/api/admin/report/regenerate/route.ts": { "maxDuration": 500 },
-    "app/api/admin/grant/route.ts": { "maxDuration": 500 }
+    "app/api/report/route.ts": { "maxDuration": 300 },
+    "app/api/report/retry/route.ts": { "maxDuration": 300 },
+    "app/api/admin/report/regenerate/route.ts": { "maxDuration": 300 },
+    "app/api/admin/grant/route.ts": { "maxDuration": 300 }
   }
 }
