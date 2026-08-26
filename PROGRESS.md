@@ -21,7 +21,7 @@
 | [2] thinking 예산 제한 | **완료 — effort 방식으로** |
 | [3] 재측정 | **완료** — 8건, `test/report-output.md` |
 | [4] 잘림 방지 확인 | **완료** — 자연 발생 0건, 강제 재현으로 처리 확인 |
-| [6-2] 목업 결제 경로로 화면 검증 | **중단 — Supabase 005 미적용** |
+| [6-2] 목업 결제 경로로 화면 검증 | **완료** — 셋 다 통과, 그 과정에서 버그 3건 발견 |
 
 ---
 
@@ -98,40 +98,31 @@ RUN_TRUNCATION_CHECK=1 npx vitest run test/truncation.test.ts
 
 ---
 
-#### [6-2] 목업 결제 경로 — 여기서 막혔습니다
+#### [6-2] 목업 결제 경로 — 완료
 
-**Supabase에 `005_report_started_at.sql`을 적용하면 이어서 할 수 있습니다.**
+005를 적용한 뒤 화면으로 셋 다 확인했습니다.
 
-목업 결제 경로는 만들었고 화면까지 확인했습니다.
+목업 결제 경로 (프로덕션 빌드에서는 404, 그 위에 `DEV_MOCK_LOGIN=1` 필요)
 
 ```
 GET  /api/dev/mock-login?next=/my   테스트 계정 세션만 심음
 POST /api/dev/mock-reset            테스트 계정 리포트·결제·조회 삭제
 ```
 
-프로덕션 빌드에서는 값과 무관하게 404이고, 그 위에 `DEV_MOCK_LOGIN=1`까지
-있어야 열립니다. 결제와 리포트 생성은 손대지 않았습니다.
-
-브라우저로 확인한 데까지:
+결제와 리포트 생성은 손대지 않았습니다. 실제 라우트를 그대로 씁니다.
 
 | 단계 | 결과 |
 |---|---|
-| `/api/dev/mock-login` → 마이페이지 | **O** dev@sihum.local로 로그인됨 |
-| `POST /api/queries` (실제 라우트) | **O** 200, 조회 기록 생성 |
-| `/checkout?q=...` | **O** 3,900원·D-50 정상 표시 |
-| 결제하기 → `POST /api/payment` | **O** 200, payments 행 생성 |
-| → `POST /api/report` | **X 500** — `column reports.started_at does not exist` |
+| mock-login → 마이페이지 | **O** dev@sihum.local |
+| `POST /api/queries` | **O** 200 |
+| `/checkout?q=...` | **O** 3,900원 · D-50 |
+| 결제하기 → `POST /api/payment` | **O** payments 생성 |
+| → `POST /api/report` | **O** reports pending + payment 연결 |
+| **탭 닫고 재진입** | **O** 탭을 완전히 닫고 새 탭에서 `/report/[id]` → 생성 중 화면이 이어지고, 서버가 끝까지 만들어 저장 (5,254자 · 79초) |
+| **완료 후 재진입** | **O** `output_tokens 5791` · `generation_ms 79161` 불변. AI 재호출 없음 |
+| **마이페이지** | **O** 생성 중 "만들고 있어요..." + "진행 상황 보기" → 완료 후 "D-50 · 운 지수 44" + "리포트 보기" |
 
-화면은 "결제 처리 중 문제가 생겼어요"로 떨어집니다. 처리 자체는 맞습니다.
-
-**005를 적용하면 아래 셋을 이어서 확인하면 됩니다.**
-
-1. 탭 닫고 재진입 — 생성 중 이탈 후 `/report/[id]` 재방문
-2. 완료 후 재진입 — 저장된 결과를 쓰고 AI를 다시 부르지 않는지
-3. 마이페이지 "만들고 있어요"
-
-재현 순서는 위 표 그대로입니다. `/checkout` 진입 전 `sessionStorage`에
-`chat` 키가 있어야 합니다 (채팅 흐름을 건너뛸 때).
+재현 순서. `/checkout` 진입 전 `sessionStorage`에 `chat` 키가 있어야 합니다.
 
 ```js
 sessionStorage.setItem('chat', JSON.stringify({ answers: {
@@ -140,6 +131,52 @@ sessionStorage.setItem('chat', JSON.stringify({ answers: {
   birthDate: '1998-03-15', birthTime: '14:30', name: '김민준',
 }}))
 ```
+
+#### 화면에서만 나온 버그 3건
+
+셋 다 `npx tsc --noEmit`과 `npm run build`를 통과합니다. 런타임에만 납니다.
+코드만 봐서는 못 찾았을 것들입니다.
+
+**① 완료된 리포트가 통째로 터짐** — 제일 큰 건입니다.
+
+```
+Attempted to call scoreColor() from the server but scoreColor is on the client.
+```
+
+`scoreColor` / `potentialColor`가 `'use client'`인 `ScorePair.tsx`에서
+export되는데 서버 컴포넌트 `ReportCover`가 호출했습니다. 함수가 아니라
+클라이언트 참조가 넘어와 터집니다.
+
+**생성은 정상이고 DB는 completed인데 화면만 "잠깐 문제가 생겼어요"였습니다.**
+결제한 사용자가 리포트를 못 보는 상태였습니다.
+
+색만 돌려주는 순수 함수라 `components/result/score-color.ts`로 옮겼습니다.
+`'use client'` 파일의 named export를 전수 확인했고, 같은 위반은 이것
+하나였습니다.
+
+**② `{name}` 자리표시자 노출**
+
+`paid-fragments.json`의 조각에 `{name}님`이 들어 있는데 치환 없이 화면에
+실렸습니다. 마지막 섹션에 `{name}님은 어떤 시험을 봐도 이 패턴이
+반복됩니다`가 그대로 찍혔습니다.
+
+**③ 조각이 화면에 두 번**
+
+화면이 조각을 앞에 붙이고 AI 본문도 조각을 그대로 다시 씁니다. 같은 세
+문단이 연달아 두 번 나옵니다. 프롬프트가 반복 금지를 지시하는데 실측
+8건에서 8건 다 반복했습니다.
+
+분량 수치도 흐리고 있었습니다. **마지막 섹션이 상한을 계속 넘긴 진짜
+원인이 이것이었습니다.**
+
+```
+strategy  594자 → 조각 265자를 빼면 329자
+pattern   626자 → 조각  82자를 빼면 544자
+```
+
+`lib/ai/fragment.ts`가 저장 시점과 렌더 시점 양쪽에서 처리합니다.
+렌더 쪽은 이 수정 전에 만들어진 리포트 때문이고, 여러 번 걸어도 결과가
+같습니다.
 
 ---
 
@@ -158,37 +195,26 @@ RUN_REPORT_SAMPLE=1 RUNS=2 npx vitest run test/report-output.test.ts
 
 ---
 
-### 먼저 해야 하는 것
+### 마이그레이션 상태
 
-**Supabase에 `005_report_started_at.sql`을 실행하십시오.**
+004 · 005 모두 적용 완료입니다 (2026-08-26).
 
-`reports.started_at` 한 컬럼입니다. 대시보드 SQL 편집기에 파일 내용을
-그대로 붙여넣으면 됩니다. 이미 적용됐어도 다시 실행할 수 있습니다.
-
-**지금은 이것 때문에 리포트가 아예 만들어지지 않습니다.** 컬럼이 없어서
-`POST /api/report`의 insert가 실패합니다. 결제는 기록되는데 리포트는
-없는 상태가 됩니다. 로컬에서 브라우저로 확인했습니다.
-
-```
-POST /api/report → 500
-  column reports.started_at does not exist
-```
-
-적용 여부는 이걸로 확인합니다. `reports.started_at: 200`이면 됐습니다.
+확인은 이걸로 합니다. `reports.started_at: 200`이면 적용된 것입니다.
 
 ```bash
 node scripts/dev-check.mjs
 ```
 
-004는 2026-08-26에 적용 완료했습니다 (exam_name_raw · exam_period ·
-total_chars 세 컬럼 확인).
+005를 적용하기 전에는 `POST /api/report`의 insert가 실패해 결제만
+기록되고 리포트가 없는 상태가 됐습니다. 새 환경에 배포할 때 이 순서를
+빠뜨리지 마십시오.
 
 ### 지금 어디까지 됐나
 
 | | 상태 |
 |---|---|
 | 코드 | 타입 검사 · 빌드 · 테스트 320건 통과 |
-| Supabase | 004 적용 완료. **005 미적용 — 리포트 생성이 500으로 막힙니다** |
+| Supabase | 004 · 005 적용 완료 |
 | Anthropic API | 연결됨. effort low 8건 중 8건 성공 |
 | Serper 검색 | 연결됨. 면접만 2회(1.5~2.1초), 필기는 0회 |
 | 리포트 생성 | 서버 완결 구조. 나갔다 와도 이어짐 |
@@ -396,15 +422,13 @@ window.$RV(window.$RB)            // 강제로 꽂기
 
 | 할 일 | 필수 여부 |
 |---|---|
-| Supabase에 `005_report_started_at.sql` 실행 | **필수** |
 | Vercel Pro 플랜 전환 | **필수** |
 | PG 계약 | **필수** |
 | 카카오 / 구글 OAuth 등록 | **필수** |
 | 사업자 등록 · 통신판매업 신고 | **필수** |
 | `hero-body.png`, `hero-arm.png` 제작 | 선택 |
 
-004는 적용 완료했습니다. **005는 지금 당장 필요합니다** — 없으면 리포트
-생성이 500으로 실패합니다. 위 "먼저 해야 하는 것"을 보십시오.
+004 · 005 모두 적용 완료입니다.
 
 #### 캐릭터 팔 애니메이션 (선택)
 
