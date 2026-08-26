@@ -3,6 +3,11 @@
 interface Props {
   index: number
   title: string
+  /**
+   * 미리 쓴 조각 (PRD 8.18). AI 생성분보다 앞에 옵니다.
+   * 순서를 바꾸면 사주 해석의 일관성이 무너집니다.
+   */
+  lead?: string
   body?: string
   highlight?: boolean
   children?: React.ReactNode
@@ -11,6 +16,7 @@ interface Props {
 export default function ReportSection({
   index,
   title,
+  lead,
   body,
   highlight,
   children,
@@ -33,6 +39,8 @@ export default function ReportSection({
         )}
         {title}
       </h2>
+
+      {lead && <ReportBody body={lead} />}
 
       {body && <ReportBody body={body} />}
 

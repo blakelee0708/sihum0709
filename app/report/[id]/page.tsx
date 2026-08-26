@@ -27,6 +27,13 @@ export const metadata: Metadata = { title: '내 리포트 · 시험사주' }
 interface ReportContent {
   sections: SectionSpec[]
   generated: Record<string, string>
+  /** AI 생성분 앞에 붙는 미리 쓴 조각 (PRD 8.18) */
+  fragments?: {
+    compatibility?: string
+    position?: string
+    shipsin?: string
+    pattern?: string
+  }
   compatibility: { score: number; relation: string } | null
   foundedDate: string | null
   companyName: string | null
@@ -183,6 +190,17 @@ export default async function ReportPage({
 
           const body = content.generated[section.key]
 
+          // 조각이 앞에, AI 생성분이 뒤에 옵니다 (PRD 8.18).
+          // 순서를 바꾸면 사주 해석의 일관성이 무너집니다.
+          const lead =
+            section.key === 'pattern'
+              ? content.fragments?.shipsin
+              : section.key === 'strategy'
+                ? content.fragments?.pattern
+                : section.key === 'compatibility'
+                  ? content.fragments?.compatibility ?? content.fragments?.position
+                  : undefined
+
           // 계산 섹션은 그림이 먼저 오고 해설이 뒤에 붙습니다
           if (section.key === 'saju') {
             return (
@@ -209,13 +227,13 @@ export default async function ReportPage({
             )
           }
 
-          // 궁합 섹션은 미리 쓴 조각이 앞에 오고 AI 생성분이 뒤에 붙습니다
           if (section.key === 'compatibility') {
             return (
               <ReportSection
                 key={section.key}
                 index={index}
                 title={section.title}
+                lead={lead}
                 body={body}
               >
                 {content.compatibility && (
@@ -229,13 +247,14 @@ export default async function ReportPage({
             )
           }
 
-          if (!body) return null
+          if (!body && !lead) return null
 
           return (
             <ReportSection
               key={section.key}
               index={index}
               title={section.title}
+              lead={lead}
               body={body}
               highlight={section.highlight}
             />

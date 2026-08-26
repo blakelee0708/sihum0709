@@ -214,6 +214,24 @@ export const EXAM_TYPE_TO_METHOD_KEY: Record<ExamType, MethodKey> = {
 /** 입력 방식 4분류 (PRD 10.2) */
 export const EXAM_TYPES: ExamType[] = ['필기', '면접', '실기', '오디션']
 
+/** PRD 8.7 잠재력 발휘 지수 — 시험일 일진 관계별 가산 */
+export const POTENTIAL_BY_DAY_RELATION: Record<Relation, number> = {
+  상생: 10,
+  비화: 5,
+  아극: 3,
+  설기: -5,
+  상극: -10,
+}
+
+/** PRD 8.7 잠재력 발휘 지수 — 시작 시간 궁합별 가산 */
+export const POTENTIAL_BY_START_RELATION: Record<Relation, number> = {
+  상생: 8,
+  비화: 4,
+  아극: 2,
+  설기: -3,
+  상극: -8,
+}
+
 /** PRD 6.1 시험 당일 운 지수 — 관계별 가산 */
 export const DAY_SCORE_BY_RELATION: Record<Relation, number> = {
   상생: 30,

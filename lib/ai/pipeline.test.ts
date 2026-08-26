@@ -64,17 +64,19 @@ describe('파이프라인 (목업 모드)', () => {
     expect(compat.title).toBe('이 조직에서 나의 위치')
   })
 
-  it('검색 로그를 남긴다 (PRD 22.14)', async () => {
+  it('필기는 검색하지 않는다 (PRD 8.12)', async () => {
     const written = await runPipeline({ userInput: WRITTEN })
-    expect(written.searchLogs).toHaveLength(1)
-    expect(written.searchLogs[0].queryType).toBe('exam')
+    expect(written.searchLogs).toHaveLength(0)
+    expect(written.searchCredits).toBe(0)
+  })
 
+  it('면접만 검색 2회를 쓴다 (PRD 8.12, 22.14)', async () => {
     const interview = await runPipeline({
       userInput: INTERVIEW,
       companyName: '삼성전자',
     })
     expect(interview.searchLogs).toHaveLength(2)
-    expect(interview.searchLogs[0].queryType).toBe('company')
+    expect(interview.searchLogs.every((l) => l.queryType === 'company')).toBe(true)
   })
 
   it('실기는 유료 상품을 만들지 않는다 (PRD 8.2)', async () => {

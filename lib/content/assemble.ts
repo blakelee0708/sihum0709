@@ -15,7 +15,9 @@ import {
   getLuckyColor,
   getLuckyColors,
   getLuckyDirection,
+  getLuckyHour,
   getLuckyNumber,
+  getLuckyNumbers,
   type ElementProfile,
 } from '../saju/elements'
 import {
@@ -24,6 +26,8 @@ import {
   getDdayRange,
   getExamDayScore,
   getMethodFit,
+  getMethodFitScore,
+  getPotentialScore,
   getScoreRange,
   getStartTimeRelation,
   getTodayScore,
@@ -62,6 +66,11 @@ export interface UserInput {
   birthTime?: string | null
   hasBirthTime: boolean
 
+  /** 정규화 전 원본 입력 (PRD 10.3). 프리셋 버튼으로 고른 경우 없습니다 */
+  examNameRaw?: string | null
+  /** 대학교 시험만 값이 있습니다 (PRD 10.4) */
+  examPeriod?: ExamPeriod | null
+
   // 면접 전용
   companyScale?: CompanyScale | null
   workType?: WorkType | null
@@ -80,6 +89,11 @@ export interface ResultCard {
   paragraphs: string[]
 }
 
+/** PRD 10.4 대학교 시험 기간 */
+export type ExamPeriod = '하루' | '2~3일' | '4~7일' | '일주일 이상'
+
+export const EXAM_PERIODS: ExamPeriod[] = ['하루', '2~3일', '4~7일', '일주일 이상']
+
 export interface FreeResult {
   input: UserInput
   saju: Saju
@@ -91,6 +105,8 @@ export interface FreeResult {
   examDayScore: number
   examDayRelation: Relation
   todayScore: number
+  /** PRD 8.7 잠재력 발휘 지수. 무료에서는 잠금으로 가립니다 */
+  potentialScore: number
   character: CharacterStage
   badge: TypeBadge
   speechBubble: string
@@ -104,9 +120,11 @@ export interface FreeResult {
 
   /** 파생 값 (공유 이미지, 유료 프롬프트에 사용) */
   luckyNumber: number
+  luckyNumbers: [number, number]
   luckyColor: string
   luckyColors: string[]
   luckyDirection: string
+  luckyHour: string
 
   /** 시간 미입력 안내 노출 여부 (PRD 4.3.3) */
   showBirthTimeNotice: boolean
@@ -319,6 +337,11 @@ export function buildFreeResult(
     examDayScore: exam.score,
     examDayRelation: exam.relation,
     todayScore: todayFortune.score,
+    potentialScore: getPotentialScore({
+      examDayRelation: exam.relation,
+      startTimeRelation: startTime?.relation ?? null,
+      methodFitScore: getMethodFitScore(strong, input.examType),
+    }),
     character: getCharacter(exam.score),
     badge: getTypeBadge(strong),
     speechBubble: speechBubbleFor(ddayRange, input.examType),
@@ -330,9 +353,11 @@ export function buildFreeResult(
     startTime,
 
     luckyNumber: getLuckyNumber(weak),
+    luckyNumbers: getLuckyNumbers(weak),
     luckyColor: getLuckyColor(weak),
     luckyColors: getLuckyColors(weak),
     luckyDirection: getLuckyDirection(weak),
+    luckyHour: getLuckyHour(weak),
 
     showBirthTimeNotice: !input.hasBirthTime,
   }

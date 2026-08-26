@@ -7,6 +7,10 @@
  *   6.4 7일 기운 흐름
  *   6.5 시작 시간 궁합
  *   6.6 월별 시험운 (유료 전용)
+ *
+ * 유료 리포트가 쓰는 두 가지도 여기 있습니다.
+ *   8.6 12지지 시간대 (섹션 4)
+ *   8.7 잠재력 발휘 지수 (표지)
  */
 
 import {
@@ -19,6 +23,7 @@ import {
   type Saju,
 } from './calculate'
 import { getRelation } from './elements'
+import { getShipsin, type Shipsin } from './shipsin'
 import {
   BASE_SCORE,
   BRANCHES,
@@ -28,6 +33,8 @@ import {
   EXAM_TYPE_TO_METHOD_KEY,
   METHOD_FIT,
   METHOD_KEYS,
+  POTENTIAL_BY_DAY_RELATION,
+  POTENTIAL_BY_START_RELATION,
   type Element,
   type ExamType,
   type MethodKey,
@@ -304,6 +311,121 @@ export function getCharacterFile(score: number): string {
   if (score >= 50) return 'char-03'
   if (score >= 35) return 'char-02'
   return 'char-01'
+}
+
+// ─── PRD 8.6 시간대별 운용 (12지지) ───
+
+export interface TimeSlot {
+  /** 예: '07:00-08:59' */
+  range: string
+  /** 예: '진시' */
+  branch: string
+  /** 예: '辰時' */
+  hanja: string
+  element: Element
+  /** 사용자 일간과의 십신 관계 (PRD 5.6) */
+  relation: Shipsin
+}
+
+/** 지지 index → 그 시간대가 시작하는 시각. 자시가 23시부터입니다 */
+function slotStartHour(branchIndex: number): number {
+  return (23 + branchIndex * 2) % 24
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+/**
+ * 시험 당일 시간대 배열 (PRD 8.6).
+ *
+ * 시작 시각을 기준으로 기상부터 종료까지의 구간만 만듭니다. 종료 시각을 받지
+ * 않으므로 시작 이후는 두 구간까지만 넣고, 그 뒤는 프롬프트가 상대 표현
+ * ("시작 직후 20분", "후반")으로 쓰게 둡니다.
+ *
+ * 각 구간에 지지 오행과 일간의 십신 관계를 미리 붙입니다. AI가 관계를 임의로
+ * 판단하지 않게 하기 위함입니다.
+ *
+ * 시작 시각을 모르면 빈 배열을 돌려주고, 섹션 4를 시간대 없는 구성으로
+ * 대체합니다 (PRD 8.16).
+ */
+export function getTimeSlots(
+  dayElement: Element,
+  startTime: string | null,
+  /** 기상은 시작 몇 시간 전으로 볼지 */
+  wakeHoursBefore = 3,
+  /** 시작 이후 몇 구간까지 넣을지 */
+  slotsAfter = 2
+): TimeSlot[] {
+  if (!startTime) return []
+
+  const [hh] = startTime.split(':').map(Number)
+  if (Number.isNaN(hh)) return []
+
+  const startBranch = getHourBranchIndex(parseLocalDateTime('2000-01-01', startTime))
+
+  // 기상 시각이 속한 지지부터 시작합니다
+  const wakeHour = (hh - wakeHoursBefore + 24) % 24
+  const wakeBranch = getHourBranchIndex(parseLocalDateTime('2000-01-01', `${pad(wakeHour)}:00`))
+
+  // 기상 지지 → 시작 지지 → 그 뒤 slotsAfter개
+  const count = ((startBranch - wakeBranch + 12) % 12) + 1 + slotsAfter
+
+  const out: TimeSlot[] = []
+  for (let i = 0; i < count; i += 1) {
+    const b = (wakeBranch + i) % 12
+    const from = slotStartHour(b)
+    const to = (from + 1) % 24
+    const element = BRANCH_ELEMENT[b]
+
+    out.push({
+      range: `${pad(from)}:00-${pad(to)}:59`,
+      branch: `${BRANCHES[b]}시`,
+      hanja: `${BRANCH_HANJA[b]}時`,
+      element,
+      relation: getShipsin(dayElement, element),
+    })
+  }
+  return out
+}
+
+// ─── PRD 8.7 잠재력 발휘 지수 ───
+
+/** 70~120으로 자릅니다. 당일 운(0-100)과 다른 축이라 clamp를 따로 씁니다 */
+function clampPotential(n: number): number {
+  return Math.max(70, Math.min(120, Math.round(n)))
+}
+
+export interface PotentialInput {
+  /** 시험일 일진 관계 */
+  examDayRelation: Relation
+  /** 시작 시간 궁합. 시간을 모르면 null */
+  startTimeRelation: Relation | null
+  /** 해당 방식의 궁합 점수 (6.3) */
+  methodFitScore: number
+}
+
+/**
+ * 그날 조건에서 평소 실력의 몇 퍼센트가 나오는지 (PRD 8.7).
+ *
+ * 당일 운 지수와 다른 축입니다. 당일 운이 낮아도 발휘 지수가 높으면
+ * "흐름이 밀어주는 날은 아니지만 준비한 것은 잘 나오는 조건"이 됩니다.
+ *
+ * 유료 전용 지표입니다. 무료에서는 잠금으로 표시하고 숫자를 가립니다.
+ */
+export function getPotentialScore(input: PotentialInput): number {
+  let score = 100
+
+  score += POTENTIAL_BY_DAY_RELATION[input.examDayRelation]
+
+  // 시작 시각을 모르면 이 항목을 빼고 계산합니다. 0을 더하는 것과 같습니다.
+  if (input.startTimeRelation) {
+    score += POTENTIAL_BY_START_RELATION[input.startTimeRelation]
+  }
+
+  score += (input.methodFitScore - 70) / 5
+
+  return clampPotential(score)
 }
 
 export { METHOD_KEYS }

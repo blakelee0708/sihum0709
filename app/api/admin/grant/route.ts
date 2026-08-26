@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
           compatibility: out.compatibility
             ? { score: out.compatibility.score, relation: out.compatibility.relation }
             : null,
+          fragments: out.fragments,
           foundedDate: out.foundedDate,
           companyName: query.company_name,
           mock: out.generated.mock,

@@ -64,7 +64,6 @@ export const EMPTY: SearchContext = {
 export const SEARCH_QUERIES = {
   companyFounded: (company: string) => `${company} 법인 설립일 연혁`,
   companyInfo: (company: string) => `${company} 사업 인재상 최근`,
-  examSubjects: (exam: string) => `${exam} 시험 과목 구성 배점`,
 }
 
 /**

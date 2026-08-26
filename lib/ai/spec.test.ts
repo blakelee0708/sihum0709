@@ -21,34 +21,38 @@ describe('D-day 구간 판정 (PRD 8.6)', () => {
   })
 })
 
-describe('필기 리포트 구성 (PRD 8.3, 8.6)', () => {
-  it('D-8 이상은 섹션 11개', () => {
+describe('필기 리포트 구성 (PRD 8.3, 8.8)', () => {
+  it('D-8 이상은 섹션 14개', () => {
     const spec = getReportSpec('필기', 'normal', 2026)
-    expect(spec.sections).toHaveLength(11)
-    expect(spec.sections[0].key).toBe('saju')
-    expect(spec.sections.map((s) => s.key)).toContain('weekPlan')
+    expect(spec.sections).toHaveLength(14)
+    expect(spec.sections.map((s) => s.key)).toEqual([
+      'saju', 'pattern', 'studyType', 'dayTimeline', 'weekPlan', 'cautions',
+      'eve', 'remaining', 'seat', 'lucky', 'avoid', 'calendar', 'after', 'strategy',
+    ])
   })
 
-  it('D-2~D-7은 7일 플랜이 남은 기간 집중 배분으로 바뀐다', () => {
-    const spec = getReportSpec('필기', 'short', 2026)
-    const plan = spec.sections.find((s) => s.key === 'weekPlan')!
-    expect(plan.title).toBe('남은 기간 집중 배분')
+  it('섹션 5와 8이 구간마다 바뀐다 (PRD 8.8 표)', () => {
+    const table: Record<string, [string, string]> = {
+      normal: ['시험 전 7일 데일리 플랜', '남은 기간 어떻게 쓸까'],
+      short: ['남은 날짜 데일리 플랜', '지금 무엇을 버릴까'],
+      eve: ['오늘 밤부터 내일 입실까지', '오늘 밤 시간표'],
+    }
+
+    for (const [range, [plan, use]] of Object.entries(table)) {
+      const spec = getReportSpec('필기', range as 'normal', 2026)
+      expect(spec.sections[4].title, range).toBe(plan)
+      expect(spec.sections[7].title, range).toBe(use)
+    }
   })
 
-  it('D-1은 오늘 밤과 내일 아침이 들어가고 7일 플랜이 빠진다', () => {
-    const spec = getReportSpec('필기', 'eve', 2026)
-    const keys = spec.sections.map((s) => s.key)
-    expect(keys).toContain('tonight')
-    expect(keys).toContain('morning')
-    expect(keys).not.toContain('weekPlan')
-  })
-
-  it('D-DAY는 지금 바로 할 3가지가 최상단이고 분량이 줄어든다', () => {
+  it('D-DAY는 지금 바로 할 3가지가 최상단이고 섹션 8이 5에 통합된다', () => {
     const spec = getReportSpec('필기', 'dday', 2026)
     expect(spec.sections[0].key).toBe('nowThree')
     expect(spec.sections[0].highlight).toBe(true)
-    expect(spec.sections).toHaveLength(8)
-    expect(spec.sections.map((s) => s.key)).not.toContain('weekPlan')
+    expect(spec.sections[1].title).toBe('지금부터 시험 종료까지')
+    // 남은 기간 배분(섹션 8)은 별도 섹션으로 두지 않습니다
+    expect(spec.sections.map((s) => s.key)).not.toContain('remaining')
+    expect(spec.sections).toHaveLength(9)
   })
 
   it('캘린더 제목에 시험 연도가 들어간다', () => {
@@ -56,18 +60,43 @@ describe('필기 리포트 구성 (PRD 8.3, 8.6)', () => {
     const cal = spec.sections.find((s) => s.key === 'calendar')!
     expect(cal.title).toBe('2027년 시험운 캘린더')
   })
+
+  it('시작 시각을 모르면 섹션 4가 시간대 없는 구성으로 바뀐다 (PRD 8.16)', () => {
+    const withTime = getReportSpec('필기', 'normal', 2026, { hasStartTime: true })
+    const without = getReportSpec('필기', 'normal', 2026, { hasStartTime: false })
+
+    expect(withTime.sections[3].source).toBe('calc+ai')
+    expect(without.sections[3].source).toBe('ai')
+    expect(without.sections[3].brief).toContain('timeSlots가 없습니다')
+    // 제목과 분량은 그대로입니다
+    expect(without.sections[3].title).toBe(withTime.sections[3].title)
+    expect(without.sections[3].minChars).toBe(withTime.sections[3].minChars)
+  })
 })
 
 describe('면접 리포트 구성 (PRD 8.4)', () => {
-  it('섹션 11개이고 7일 플랜이 없다', () => {
+  it('섹션 15개이고 7일 플랜이 없다', () => {
     const spec = getReportSpec('면접', 'normal', 2026)
-    expect(spec.sections).toHaveLength(11)
+    expect(spec.sections).toHaveLength(15)
     expect(spec.sections.map((s) => s.key)).not.toContain('weekPlan')
   })
 
-  it('시간대별 운용 섹션을 넣지 않는다 (PRD 8.4)', () => {
+  it('시간대별 운용이 들어간다 (PRD 8.4 섹션 4)', () => {
     const spec = getReportSpec('면접', 'normal', 2026)
-    expect(spec.sections.map((s) => s.key)).not.toContain('dayTimeline')
+    expect(spec.sections[3].key).toBe('dayTimeline')
+    expect(spec.sections[3].title).toBe('면접 당일 시간대별 운용')
+  })
+
+  it('D-8 이상과 D-2~D-7 구성이 같다', () => {
+    const a = getReportSpec('면접', 'normal', 2026)
+    const b = getReportSpec('면접', 'short', 2026)
+    expect(b.sections.map((s) => s.title)).toEqual(a.sections.map((s) => s.title))
+  })
+
+  it('D-1은 전날 밤이 오늘 밤부터 내일 입실까지로 바뀐다', () => {
+    const spec = getReportSpec('면접', 'eve', 2026)
+    const eve = spec.sections.find((s) => s.key === 'eve')!
+    expect(eve.title).toBe('오늘 밤부터 내일 입실까지')
   })
 
   it('캘린더 제목이 면접운이다', () => {
@@ -76,12 +105,12 @@ describe('면접 리포트 구성 (PRD 8.4)', () => {
     expect(cal.title).toBe('2026년 면접운 캘린더')
   })
 
-  it('설립일 미확인이면 궁합이 위치 섹션으로 바뀐다 (PRD 8.7)', () => {
+  it('설립일 미확인이면 궁합이 위치 섹션으로 바뀐다 (PRD 8.9)', () => {
     const spec = applyMissingFoundedDate(getReportSpec('면접', 'normal', 2026))
     const s = spec.sections.find((x) => x.key === 'compatibility')!
     expect(s.title).toBe('이 조직에서 나의 위치')
     // 자리를 비워두지 않으므로 섹션 개수는 그대로입니다
-    expect(spec.sections).toHaveLength(11)
+    expect(spec.sections).toHaveLength(15)
   })
 })
 
@@ -103,11 +132,14 @@ describe('결제 전 안내 (PRD 8.6)', () => {
   })
 })
 
-describe('검색어 (PRD 8.10)', () => {
+describe('검색어 (PRD 8.12)', () => {
   it('PRD가 지정한 검색어를 그대로 쓴다', () => {
     expect(SEARCH_QUERIES.companyFounded('삼성전자')).toBe('삼성전자 법인 설립일 연혁')
     expect(SEARCH_QUERIES.companyInfo('삼성전자')).toBe('삼성전자 사업 인재상 최근')
-    expect(SEARCH_QUERIES.examSubjects('국가직 9급')).toBe('국가직 9급 시험 과목 구성 배점')
+  })
+
+  it('필기 검색어는 없다 — 필기는 검색 0회다', () => {
+    expect(Object.keys(SEARCH_QUERIES)).toEqual(['companyFounded', 'companyInfo'])
   })
 })
 
@@ -164,27 +196,39 @@ describe('AI 응답 파싱 (PRD 8.15)', () => {
 })
 
 describe('섹션별 최소 분량 (PRD 8.3, 8.4)', () => {
-  it('필기 D-8 이상 합계가 4,800자다', () => {
+  it('필기 D-8 이상이 PRD 8.3 표와 같다', () => {
     const spec = getReportSpec('필기', 'normal', 2026)
-    expect(spec.sections.reduce((a, x) => a + x.minChars, 0)).toBe(4800)
+    expect(spec.sections.map((s) => s.minChars)).toEqual([
+      250, 550, 550, 900, 1100, 500, 500, 500, 350, 400, 350, 300, 450, 500,
+    ])
+    // PRD 8.3 본문은 "합계 6,900자 이상"이라 적었으나 표를 더하면 7,200입니다.
+    // 표의 값을 그대로 씁니다.
+    expect(spec.sections.reduce((a, x) => a + x.minChars, 0)).toBe(7200)
   })
 
-  it('면접 D-8 이상 합계가 5,150자다', () => {
+  it('면접 D-8 이상이 PRD 8.4 표와 같다', () => {
     const spec = getReportSpec('면접', 'normal', 2026)
-    expect(spec.sections.reduce((a, x) => a + x.minChars, 0)).toBe(5150)
+    expect(spec.sections.map((s) => s.minChars)).toEqual([
+      250, 550, 600, 900, 450, 600, 600, 900, 500, 400, 400, 500, 300, 450, 500,
+    ])
+    expect(spec.sections.reduce((a, x) => a + x.minChars, 0)).toBe(7900)
   })
 
-  it('대체 섹션에도 분량이 지정돼 있다 (PRD 8.6)', () => {
+  it('모든 섹션에 분량과 근거가 지정돼 있다 (PRD 8.5, 8.8)', () => {
     for (const type of ['필기', '면접'] as const) {
       for (const range of ['normal', 'short', 'eve', 'dday'] as const) {
-        for (const section of getReportSpec(type, range, 2026).sections) {
-          expect(section.minChars).toBeGreaterThan(0)
+        for (const hasStartTime of [true, false]) {
+          for (const section of getReportSpec(type, range, 2026, { hasStartTime })
+            .sections) {
+            expect(section.minChars, section.title).toBeGreaterThan(0)
+            expect(section.basis, section.title).toBeTruthy()
+          }
         }
       }
     }
   })
 
-  it('D-DAY는 구성이 줄어드는 만큼 목표도 낮다 (PRD 8.6)', () => {
+  it('D-DAY는 구성이 줄어드는 만큼 목표도 낮다 (PRD 8.8)', () => {
     const normal = targetChars(getReportSpec('필기', 'normal', 2026))
     const dday = targetChars(getReportSpec('필기', 'dday', 2026))
     expect(dday).toBeLessThan(normal)
@@ -197,8 +241,18 @@ describe('섹션별 최소 분량 (PRD 8.3, 8.4)', () => {
     // 그림만 두면 무료 결과와 차이가 없어 짧은 해설을 붙였습니다
     expect(saju.source).toBe('calc+ai')
     expect(cal.source).toBe('calc+ai')
-    expect(saju.minChars).toBe(200)
-    expect(cal.minChars).toBe(250)
+    expect(saju.minChars).toBe(250)
+    expect(cal.minChars).toBe(300)
+  })
+
+  it('신규 섹션 2와 마지막 섹션은 조각을 앞에 둔다 (PRD 5.6, 8.18)', () => {
+    for (const type of ['필기', '면접'] as const) {
+      const spec = getReportSpec(type, 'normal', 2026)
+      expect(spec.sections[1].key).toBe('pattern')
+      expect(spec.sections[1].source).toBe('fragment+ai')
+      expect(spec.sections[spec.sections.length - 1].key).toBe('strategy')
+      expect(spec.sections[spec.sections.length - 1].source).toBe('fragment+ai')
+    }
   })
 })
 
@@ -217,8 +271,8 @@ describe('분량 검증 (PRD 8.3)', () => {
 
   it('목표를 채우면 통과한다', () => {
     const r = checkLength(fill(1), spec)
-    expect(r.total).toBe(4800)
-    expect(r.target).toBe(4800)
+    expect(r.total).toBe(7200)
+    expect(r.target).toBe(7200)
     expect(r.ok).toBe(true)
     expect(r.short).toHaveLength(0)
   })
@@ -239,6 +293,6 @@ describe('분량 검증 (PRD 8.3)', () => {
     content.seat = '가'.repeat(10)
     const r = checkLength(content, spec)
     expect(r.short.map((x) => x.key)).toEqual(['seat'])
-    expect(r.short[0].minChars).toBe(300)
+    expect(r.short[0].minChars).toBe(350)
   })
 })
