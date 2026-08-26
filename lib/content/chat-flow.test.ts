@@ -39,7 +39,9 @@ describe('필기 흐름 (PRD 14.7)', () => {
       examName: '9급 공채',
       examDate: '2026-09-12',
       startTime: '10:00',
+      birthCalendar: 'solar',
       birthDate: '1995-06-15',
+      birthTimeKnown: true,
       birthTime: '14:30',
       name: '김민준',
     }
@@ -48,7 +50,9 @@ describe('필기 흐름 (PRD 14.7)', () => {
       'examName',
       'examDate',
       'startTime',
+      'birthCalendar',
       'birthDate',
+      'birthTimeKnown',
       'birthTime',
       'name',
       'done',
@@ -62,8 +66,9 @@ describe('필기 흐름 (PRD 14.7)', () => {
       examName: '9급 공채',
       examDate: '2026-09-12',
       startTime: null,
+      birthCalendar: 'solar',
       birthDate: '1995-06-15',
-      birthTime: null,
+      birthTimeKnown: false,
       name: null,
     }
     expect(isComplete(a)).toBe(true)
@@ -100,7 +105,9 @@ describe('면접 흐름 (PRD 14.7)', () => {
       jobTitle: '반도체 공정기술',
       examDate: '2026-09-12',
       startTime: '14:30',
+      birthCalendar: 'solar',
       birthDate: '1995-06-15',
+      birthTimeKnown: true,
       birthTime: '14:30',
       name: '김민준',
     }
@@ -154,8 +161,9 @@ describe('답변 표시 (PRD 14.6)', () => {
     examName: '9급 공채',
     examDate: '2026-09-12',
     startTime: null,
+    birthCalendar: 'solar',
     birthDate: '1995-06-15',
-    birthTime: null,
+    birthTimeKnown: false,
     name: null,
   }
   const steps = getSteps(a)
@@ -171,7 +179,7 @@ describe('답변 표시 (PRD 14.6)', () => {
 
   it('건너뛴 항목은 건너뛴 문구로 보여준다', () => {
     expect(formatAnswer(byId('startTime'), a)).toBe('아직 몰라요')
-    expect(formatAnswer(byId('birthTime'), a)).toBe('모르겠어요')
+    expect(formatAnswer(byId('birthTimeKnown'), a)).toBe('모르겠어요')
     expect(formatAnswer(byId('name'), a)).toBe('괜찮아요')
   })
 })
@@ -183,7 +191,9 @@ describe('완료 문구 (PRD 21.10)', () => {
       examName: '9급 공채',
       examDate: '2026-09-12',
       startTime: '10:00',
+      birthCalendar: 'solar',
       birthDate: '1995-06-15',
+      birthTimeKnown: true,
       birthTime: '14:30',
       name: '김민준',
     }
@@ -197,7 +207,9 @@ describe('완료 문구 (PRD 21.10)', () => {
       examName: '9급 공채',
       examDate: '2026-09-12',
       startTime: '10:00',
+      birthCalendar: 'solar',
       birthDate: '1995-06-15',
+      birthTimeKnown: true,
       birthTime: '14:30',
       name: null,
     }
@@ -214,7 +226,9 @@ describe('완료 문구 (PRD 21.10)', () => {
       jobTitle: null,
       examDate: '2026-09-12',
       startTime: '14:30',
+      birthCalendar: 'solar',
       birthDate: '1995-06-15',
+      birthTimeKnown: true,
       birthTime: '14:30',
       name: '김민준',
     }
@@ -230,8 +244,9 @@ describe('결과 입력 변환', () => {
       examName: '9급 공채',
       examDate: '2026-09-12',
       startTime: '10:00',
+      birthCalendar: 'solar',
       birthDate: '1995-06-15',
-      birthTime: null,
+      birthTimeKnown: false,
       name: null,
     }
     expect(toUserInput(a).hasBirthTime).toBe(false)
@@ -338,8 +353,9 @@ describe('대분류 10개와 방식 4분류 (PRD 10.1 ~ 10.4)', () => {
       examName: '보컬 오디션',
       examDate: '2027-03-15',
       startTime: null,
+      birthCalendar: 'solar',
       birthDate: '1995-06-15',
-      birthTime: null,
+      birthTimeKnown: false,
       name: null,
     })
     expect(input.examType).toBe('오디션')
@@ -352,8 +368,9 @@ describe('대분류 10개와 방식 4분류 (PRD 10.1 ~ 10.4)', () => {
       examPeriod: '2~3일',
       examDate: '2027-06-15',
       startTime: null,
+      birthCalendar: 'solar',
       birthDate: '1995-06-15',
-      birthTime: null,
+      birthTimeKnown: false,
       name: null,
     })
     expect(input.examPeriod).toBe('2~3일')
@@ -389,5 +406,108 @@ describe('대분류별 공감 문구 (PRD 21.11)', () => {
     for (const [id, script] of Object.entries(CATEGORY_INTRO)) {
       expect(script.length, id).toBeLessThanOrEqual(2)
     }
+  })
+})
+
+describe('생년월일 입력 (FIX_3 [3]-1 ~ [3]-3)', () => {
+  const base: Answers = {
+    category: 'gov',
+    examName: '9급 공채',
+    examDate: '2026-09-12',
+    startTime: '10:00',
+  }
+
+  it('양력·음력을 먼저 묻는다', () => {
+    const steps = getSteps(base)
+    const last = steps[steps.length - 1]
+    expect(last.id).toBe('birthCalendar')
+    expect(last.options?.map((o) => o.value)).toEqual(['solar', 'lunar'])
+  })
+
+  it('양력이면 윤달을 묻지 않는다', () => {
+    const steps = ids({ ...base, birthCalendar: 'solar' })
+    expect(steps).not.toContain('birthLeapMonth')
+    expect(steps[steps.length - 1]).toBe('birthDate')
+  })
+
+  it('음력이면 윤달을 먼저 묻는다', () => {
+    const steps = ids({ ...base, birthCalendar: 'lunar' })
+    expect(steps[steps.length - 1]).toBe('birthLeapMonth')
+  })
+
+  it('음력이면 변환한 양력 날짜를 확인시킨다', () => {
+    const a: Answers = {
+      ...base,
+      birthCalendar: 'lunar',
+      birthLeapMonth: false,
+      birthDate: '1990-05-09',
+      birthLunarDate: '1990-04-15',
+    }
+    const confirm = getSteps(a).find((s) => s.id === 'birthConfirm')!
+    expect(confirm.question[0]).toContain('1990년 5월 9일')
+    // 말풍선에는 사용자가 적은 음력 날짜가 남습니다
+    const dateStep = getSteps(a).find((s) => s.id === 'birthDate')!
+    expect(formatAnswer(dateStep, a)).toBe('1990년 4월 15일')
+  })
+
+  it('양력이면 확인 단계가 없다', () => {
+    const steps = ids({ ...base, birthCalendar: 'solar', birthDate: '1990-05-09' })
+    expect(steps).not.toContain('birthConfirm')
+    expect(steps[steps.length - 1]).toBe('birthTimeKnown')
+  })
+
+  it('태어난 시간을 모르면 시각을 묻지 않는다', () => {
+    const a: Answers = {
+      ...base,
+      birthCalendar: 'solar',
+      birthDate: '1990-05-09',
+      birthTimeKnown: false,
+    }
+    expect(ids(a)).not.toContain('birthTime')
+    expect(toUserInput(a).hasBirthTime).toBe(false)
+  })
+
+  it('태어난 시간을 알면 시각을 묻는다', () => {
+    const a: Answers = {
+      ...base,
+      birthCalendar: 'solar',
+      birthDate: '1990-05-09',
+      birthTimeKnown: true,
+    }
+    expect(ids(a)[ids(a).length - 1]).toBe('birthTime')
+  })
+
+  it('생년월일을 되돌리면 음력 원본도 지운다', () => {
+    const a: Answers = {
+      ...base,
+      birthCalendar: 'lunar',
+      birthLeapMonth: false,
+      birthDate: '1990-05-09',
+      birthLunarDate: '1990-04-15',
+      birthConfirm: true,
+    }
+    const next = resetFrom(a, 'birthDate')
+    expect(next.birthDate).toBeUndefined()
+    expect(next.birthLunarDate).toBeUndefined()
+    expect(next.birthConfirm).toBeUndefined()
+    // 윤달 답은 남습니다. 날짜만 다시 받습니다
+    expect(next.birthLeapMonth).toBe(false)
+  })
+
+  it('음력 입력 정보가 결과 입력으로 넘어간다', () => {
+    const input = toUserInput({
+      ...base,
+      birthCalendar: 'lunar',
+      birthLeapMonth: true,
+      birthDate: '1990-05-09',
+      birthLunarDate: '1990-04-15',
+      birthConfirm: true,
+      birthTimeKnown: false,
+      name: null,
+    })
+    expect(input.birthDate).toBe('1990-05-09')
+    expect(input.isLunar).toBe(true)
+    expect(input.isLeapMonth).toBe(true)
+    expect(input.lunarDate).toBe('1990-04-15')
   })
 })

@@ -64,11 +64,23 @@ export interface UserInput {
   examDate: string
   /** 'HH:mm' — 모르면 null (PRD 6.5) */
   startTime?: string | null
-  /** 'YYYY-MM-DD' */
+  /**
+   * 'YYYY-MM-DD'. 항상 양력입니다.
+   *
+   * 사용자가 음력으로 입력했으면 입력 단계에서 이미 변환한 값이
+   * 들어옵니다 (lib/saju/lunar.ts). 사주 계산은 양력과 절기만 씁니다.
+   */
   birthDate: string
   /** 'HH:mm' */
   birthTime?: string | null
   hasBirthTime: boolean
+
+  /** 음력으로 입력했는지 (FIX_3 [3]-2). 저장용이고 계산에는 쓰지 않습니다 */
+  isLunar?: boolean
+  /** 윤달이었는지 */
+  isLeapMonth?: boolean
+  /** 입력한 음력 원본 'YYYY-MM-DD' */
+  lunarDate?: string | null
 
   /** 정규화 전 원본 입력 (PRD 10.3). 프리셋 버튼으로 고른 경우 없습니다 */
   examNameRaw?: string | null

@@ -181,12 +181,14 @@ describe('프리셋 시험 (PRD 10.1, 10.3)', () => {
 })
 
 describe('대화 문구 (PRD 21.11)', () => {
-  it('총 39개', () => {
-    expect(SCRIPT_COUNT).toBe(39)
+  // 생년월일 입력이 양력·음력 → 윤달 → 날짜 → 확인 → 시간 아는지 → 시각으로
+  // 나뉘면서 공통 문구가 12개에서 16개로 늘었습니다 (FIX_3 [3]).
+  it('총 43개', () => {
+    expect(SCRIPT_COUNT).toBe(43)
   })
 
-  it('공통 12 / 면접 6 / 유료 3 / 생성 중 18', () => {
-    expect(Object.keys(COMMON_SCRIPTS)).toHaveLength(12)
+  it('공통 16 / 면접 6 / 유료 3 / 생성 중 18', () => {
+    expect(Object.keys(COMMON_SCRIPTS)).toHaveLength(16)
     expect(Object.keys(INTERVIEW_SCRIPTS)).toHaveLength(6)
     expect(Object.keys(PAID_SCRIPTS)).toHaveLength(3)
     expect(GENERATING_STEPS.필기.length + GENERATING_STEPS.면접.length).toBe(18)

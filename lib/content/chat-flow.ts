@@ -43,7 +43,11 @@ export type StepId =
   | 'jobTitle'
   | 'examDate'
   | 'startTime'
+  | 'birthCalendar'
+  | 'birthLeapMonth'
   | 'birthDate'
+  | 'birthConfirm'
+  | 'birthTimeKnown'
   | 'birthTime'
   | 'name'
   | 'done'
@@ -53,7 +57,9 @@ export type WidgetKind =
   | 'optionsWithFreeInput'
   | 'text'
   | 'date'
-  | 'time'
+  | 'startTime'
+  | 'birthTime'
+  | 'confirm'
   | 'finish'
 
 export interface Answers {
@@ -73,7 +79,18 @@ export interface Answers {
   examDate?: string
   /** 모르면 null */
   startTime?: string | null
+  /** 생년월일을 양력으로 아는지 음력으로 아는지 (FIX_3 [3]-2) */
+  birthCalendar?: 'solar' | 'lunar'
+  /** 음력을 고른 경우에만 값이 있습니다 */
+  birthLeapMonth?: boolean
+  /** 항상 양력입니다. 음력으로 입력했으면 변환한 값이 들어갑니다 */
   birthDate?: string
+  /** 음력으로 입력한 원본 'YYYY-MM-DD' */
+  birthLunarDate?: string
+  /** 변환한 양력 날짜를 확인했는지. 음력을 고른 경우에만 씁니다 */
+  birthConfirm?: boolean
+  /** 태어난 시간을 아는지 (FIX_3 [3]-3). false면 birthTime을 묻지 않습니다 */
+  birthTimeKnown?: boolean
   /** 모르면 null */
   birthTime?: string | null
   /** 건너뛰면 null */
@@ -266,36 +283,93 @@ export function getSteps(answers: Answers): Step[] {
   })
   if (!answers.examDate) return steps
 
-  // 8. 시작 시간
+  // 8. 시작 시간. 자주 쓰는 시각을 버튼으로 둡니다 (FIX_3 [3]-4)
   steps.push({
     id: 'startTime',
     question: isInterview
       ? [...INTERVIEW_SCRIPTS.startTime]
       : [...COMMON_SCRIPTS.startTime],
-    widget: 'time',
+    widget: 'startTime',
     skipLabel: isInterview ? '아직 안 나왔어요' : '모르겠어요',
     icon: 'clock',
   })
   if (answers.startTime === undefined) return steps
 
-  // 9. 생년월일
+  // 9. 양력 · 음력 (FIX_3 [3]-2)
+  steps.push({
+    id: 'birthCalendar',
+    question: [...COMMON_SCRIPTS.birthCalendar],
+    widget: 'options',
+    options: [
+      { value: 'solar', label: '양력' },
+      { value: 'lunar', label: '음력' },
+    ],
+  })
+  if (!answers.birthCalendar) return steps
+
+  const isLunar = answers.birthCalendar === 'lunar'
+
+  // 10. 윤달. 음력을 고른 경우에만 묻습니다
+  if (isLunar) {
+    steps.push({
+      id: 'birthLeapMonth',
+      question: [...COMMON_SCRIPTS.birthLeapMonth],
+      widget: 'options',
+      options: [
+        { value: 'no', label: '아니요' },
+        { value: 'yes', label: '네, 윤달이에요' },
+      ],
+    })
+    if (answers.birthLeapMonth === undefined) return steps
+  }
+
+  // 11. 생년월일 숫자 입력 (FIX_3 [3]-1)
   steps.push({
     id: 'birthDate',
     question: [...COMMON_SCRIPTS.birthDate],
     widget: 'date',
-    icon: 'calendar',
+    icon: 'keyboard',
   })
   if (!answers.birthDate) return steps
 
-  // 10. 태어난 시간
+  // 12. 변환한 양력 날짜 확인. 음력을 고른 경우에만
+  if (isLunar) {
+    steps.push({
+      id: 'birthConfirm',
+      question: COMMON_SCRIPTS.birthConfirm.map((s) =>
+        s.replace('{date}', formatDateLabel(answers.birthDate!))
+      ),
+      widget: 'confirm',
+      options: [
+        { value: 'yes', label: '네, 맞아요' },
+        { value: 'no', label: '다시 입력할게요' },
+      ],
+    })
+    if (!answers.birthConfirm) return steps
+  }
+
+  // 13. 태어난 시간을 아는지 (FIX_3 [3]-3)
   steps.push({
-    id: 'birthTime',
-    question: [...COMMON_SCRIPTS.birthTime],
-    widget: 'time',
-    skipLabel: '모르겠어요',
-    icon: 'clock',
+    id: 'birthTimeKnown',
+    question: [...COMMON_SCRIPTS.birthTimeKnown],
+    widget: 'options',
+    options: [
+      { value: 'yes', label: '알아요' },
+      { value: 'no', label: '모르겠어요' },
+    ],
   })
-  if (answers.birthTime === undefined) return steps
+  if (answers.birthTimeKnown === undefined) return steps
+
+  // 14. 태어난 시간. 안다고 한 경우에만
+  if (answers.birthTimeKnown) {
+    steps.push({
+      id: 'birthTime',
+      question: [...COMMON_SCRIPTS.birthTime],
+      widget: 'birthTime',
+      icon: 'clock',
+    })
+    if (!answers.birthTime) return steps
+  }
 
   // 11. 이름
   steps.push({
@@ -370,14 +444,25 @@ export function formatAnswer(step: Step, answers: Answers): string | null {
         : answers.startTime
           ? formatTimeLabel(answers.startTime)
           : null
-    case 'birthDate':
-      return answers.birthDate ? formatDateLabel(answers.birthDate) : null
+    case 'birthCalendar':
+      if (!answers.birthCalendar) return null
+      return answers.birthCalendar === 'lunar' ? '음력' : '양력'
+    case 'birthLeapMonth':
+      if (answers.birthLeapMonth === undefined) return null
+      return answers.birthLeapMonth ? '네, 윤달이에요' : '아니요'
+    case 'birthDate': {
+      // 음력으로 입력했으면 사용자가 적은 음력 날짜를 보여줍니다.
+      // 변환한 양력은 바로 다음 birthConfirm 말풍선이 알려줍니다.
+      const raw = answers.birthLunarDate ?? answers.birthDate
+      return raw ? formatDateLabel(raw) : null
+    }
+    case 'birthConfirm':
+      return answers.birthConfirm ? '네, 맞아요' : null
+    case 'birthTimeKnown':
+      if (answers.birthTimeKnown === undefined) return null
+      return answers.birthTimeKnown ? '알아요' : '모르겠어요'
     case 'birthTime':
-      return answers.birthTime === null
-        ? '모르겠어요'
-        : answers.birthTime
-          ? formatTimeLabel(answers.birthTime)
-          : null
+      return answers.birthTime ? formatTimeLabel(answers.birthTime) : null
     case 'name':
       return answers.name === null ? '괜찮아요' : answers.name ?? null
     default:
@@ -409,10 +494,26 @@ const STEP_ORDER: StepId[] = [
   'jobTitle',
   'examDate',
   'startTime',
+  'birthCalendar',
+  'birthLeapMonth',
   'birthDate',
+  'birthConfirm',
+  'birthTimeKnown',
   'birthTime',
   'name',
 ]
+
+/**
+ * 단계 하나를 지우면 함께 지워야 하는 곁가지 값.
+ *
+ * StepId와 이름이 다른 값들입니다. 남겨두면 예전 입력이 화면에 섞여
+ * 나옵니다. 시험명을 다시 고르는데 예전 원본이 남아 있거나, 양력으로
+ * 바꿔 입력했는데 음력 날짜가 말풍선에 뜨는 식입니다.
+ */
+const EXTRA_CLEAR: Partial<Record<StepId, (keyof Answers)[]>> = {
+  examName: ['examNameRaw'],
+  birthDate: ['birthLunarDate'],
+}
 
 export function resetFrom(answers: Answers, stepId: StepId): Answers {
   const idx = STEP_ORDER.indexOf(stepId)
@@ -421,6 +522,7 @@ export function resetFrom(answers: Answers, stepId: StepId): Answers {
   const next: Answers = { ...answers }
   for (const id of STEP_ORDER.slice(idx)) {
     delete next[id as keyof Answers]
+    for (const extra of EXTRA_CLEAR[id] ?? []) delete next[extra]
   }
   return next
 }
@@ -442,9 +544,13 @@ export function toUserInput(answers: Answers) {
     examPeriod: answers.examPeriod ?? null,
     examDate: answers.examDate ?? '',
     startTime: answers.startTime ?? null,
+    // 항상 양력입니다. 음력으로 입력했으면 이미 변환된 값이 들어 있습니다
     birthDate: answers.birthDate ?? '',
+    isLunar: answers.birthCalendar === 'lunar',
+    isLeapMonth: answers.birthLeapMonth ?? false,
+    lunarDate: answers.birthLunarDate ?? null,
     birthTime: answers.birthTime ?? null,
-    hasBirthTime: answers.birthTime !== null && answers.birthTime !== undefined,
+    hasBirthTime: Boolean(answers.birthTimeKnown && answers.birthTime),
     companyScale: answers.companyScale ?? null,
     workType: answers.workType ?? null,
     jobTitle: answers.jobTitle ?? null,

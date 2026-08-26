@@ -38,8 +38,9 @@ import BotBubble from './BotBubble'
 import UserBubble from './UserBubble'
 import OptionButtons from './OptionButtons'
 import TextInputWidget from './TextInputWidget'
-import DatePickerWidget from './DatePickerWidget'
-import TimePickerWidget from './TimePickerWidget'
+import DateFieldWidget from './DateFieldWidget'
+import StartTimeWidget from './StartTimeWidget'
+import BirthTimeWidget from './BirthTimeWidget'
 
 interface Props {
   /** 대화가 끝나고 [결과 보기]를 눌렀을 때 */
@@ -133,6 +134,13 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
     return () => vv.removeEventListener('resize', handler)
   }, [scrollToBottom])
 
+  /** 생년월일 단계에서 음력으로 입력하면 원본을 함께 남깁니다 */
+  function answerBirthDate(solar: string, lunarDate?: string) {
+    setInstant(false)
+    track('chat_step_answered', { step: 'birthDate' })
+    setAnswers((prev) => ({ ...prev, birthDate: solar, birthLunarDate: lunarDate }))
+  }
+
   function answer(id: StepId, value: unknown) {
     setInstant(false)
     setFreeInput(false)
@@ -206,9 +214,12 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
             <div className="pt-1">
               <StepWidget
                 step={current}
+                answers={answers}
                 freeInput={freeInput}
                 onFreeInput={() => setFreeInput(true)}
                 onAnswer={answer}
+                onBirthDate={answerBirthDate}
+                onEditFrom={editFrom}
                 onFinish={() => onFinish(answers)}
                 finishLabel={finishLabel}
               />
@@ -222,18 +233,24 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
 
 interface WidgetProps {
   step: Step
+  answers: Answers
   freeInput: boolean
   onFreeInput: () => void
   onAnswer: (id: StepId, value: unknown) => void
+  onBirthDate: (solar: string, lunarDate?: string) => void
+  onEditFrom: (id: StepId) => void
   onFinish: () => void
   finishLabel: string
 }
 
 function StepWidget({
   step,
+  answers,
   freeInput,
   onFreeInput,
   onAnswer,
+  onBirthDate,
+  onEditFrom,
   onFinish,
   finishLabel,
 }: WidgetProps) {
@@ -275,20 +292,44 @@ function StepWidget({
         />
       )
 
-    case 'date':
+    case 'date': {
+      const isBirth = step.id === 'birthDate'
       return (
-        <DatePickerWidget
-          mode={step.id === 'birthDate' ? 'birth' : 'exam'}
-          onSubmit={(v) => onAnswer(step.id, v)}
+        <DateFieldWidget
+          mode={isBirth ? 'birth' : 'exam'}
+          // 음력을 골랐으면 입력값을 음력으로 보고 양력으로 바꿉니다
+          lunar={
+            isBirth && answers.birthCalendar === 'lunar'
+              ? { isLeapMonth: answers.birthLeapMonth ?? false }
+              : undefined
+          }
+          onSubmit={(solar, lunarDate) =>
+            isBirth ? onBirthDate(solar, lunarDate) : onAnswer(step.id, solar)
+          }
         />
       )
+    }
 
-    case 'time':
+    case 'startTime':
       return (
-        <TimePickerWidget
+        <StartTimeWidget
           skipLabel={step.skipLabel ?? '모르겠어요'}
           onSubmit={(v) => onAnswer(step.id, v)}
           onSkip={() => onAnswer(step.id, null)}
+        />
+      )
+
+    case 'birthTime':
+      return <BirthTimeWidget onSubmit={(v) => onAnswer(step.id, v)} />
+
+    // 변환한 양력 날짜 확인. "다시 입력할게요"는 생년월일 단계로 되돌립니다
+    case 'confirm':
+      return (
+        <OptionButtons
+          options={step.options ?? []}
+          onSelect={(v) =>
+            v === 'yes' ? onAnswer(step.id, true) : onEditFrom('birthDate')
+          }
         />
       )
 
@@ -316,6 +357,9 @@ function StepWidget({
 
 /** 버튼 값은 문자열이지만 답변 타입은 각기 다릅니다 */
 function castValue(id: StepId, value: string): unknown {
+  // 예/아니요 버튼은 boolean으로 저장합니다. 'no'를 그대로 넣으면
+  // 참으로 취급돼 흐름이 어긋납니다
+  if (id === 'birthLeapMonth' || id === 'birthTimeKnown') return value === 'yes'
   if (id === 'examType') return value as ExamType
   if (id === 'companyScale') return value as CompanyScale
   if (id === 'workType') return value as WorkType
