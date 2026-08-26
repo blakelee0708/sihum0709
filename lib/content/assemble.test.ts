@@ -11,8 +11,11 @@ import { F, P, PRESET_CATEGORIES } from './fragments'
 import { buildFreeResult, type UserInput } from './assemble'
 import {
   COMMON_SCRIPTS,
+  GENERATING_INTERVAL_SEC,
+  GENERATING_NOTICE,
   GENERATING_STEPS,
   GENERATING_TIMEOUT_MS,
+  generatingSpanSec,
   fillGenerating,
   INTERVIEW_SCRIPTS,
   PAID_SCRIPTS,
@@ -196,35 +199,59 @@ describe('대화 문구 (PRD 21.11)', () => {
   })
 })
 
-describe('생성 중 대기 화면 (PRD 14.11)', () => {
-  // 실측 78-84초. 마지막 문구가 그보다 일찍 나와야 빈 구간이 생기지 않습니다.
-  it('두 종류 다 9개이고 0초부터 78초까지 10초 간격으로 놓인다', () => {
+describe('생성 중 대기 화면 (PRD 14.11, 21.11)', () => {
+  it('두 종류 다 문구가 9개다', () => {
     for (const type of ['필기', '면접'] as const) {
-      const steps = GENERATING_STEPS[type]
-      expect(steps).toHaveLength(9)
-      expect(steps.map((s) => s.at)).toEqual([0, 8, 18, 28, 38, 48, 58, 68, 78])
+      expect(GENERATING_STEPS[type]).toHaveLength(9)
     }
   })
 
-  it('명식은 8초, 오행 분포는 18초 문구에 붙는다', () => {
+  it('간격이 목표 소요에 맞는다 — 필기 10초, 면접 14초', () => {
+    expect(GENERATING_INTERVAL_SEC.필기).toBe(10)
+    expect(GENERATING_INTERVAL_SEC.면접).toBe(14)
+
+    // 목표 소요는 필기 90초, 면접 130초입니다
+    expect(generatingSpanSec('필기')).toBe(80)
+    expect(generatingSpanSec('면접')).toBe(112)
+  })
+
+  it('명식은 2번, 오행 분포는 3번 문구에 붙는다', () => {
     for (const type of ['필기', '면접'] as const) {
       const steps = GENERATING_STEPS[type]
-      expect(steps.find((s) => s.card === 'saju')?.at).toBe(8)
-      expect(steps.find((s) => s.card === 'elements')?.at).toBe(18)
+      expect(steps.findIndex((s) => s.card === 'saju')).toBe(1)
+      expect(steps.findIndex((s) => s.card === 'elements')).toBe(2)
     }
   })
 
-  it('타임아웃이 PRD 14.11의 150초다', () => {
-    const last = GENERATING_STEPS.필기[GENERATING_STEPS.필기.length - 1].at
+  it('명식과 오행 분포가 초반 40초 안에 나온다', () => {
+    for (const type of ['필기', '면접'] as const) {
+      const interval = GENERATING_INTERVAL_SEC[type]
+      // 2번 문구는 1×간격, 3번은 2×간격 시점입니다
+      expect(interval * 1).toBeLessThanOrEqual(20)
+      expect(interval * 2).toBeLessThanOrEqual(40)
+    }
+  })
+
+  it('타임아웃이 PRD 14.11의 240초이고 마지막 문구보다 넉넉하다', () => {
     expect(GENERATING_TIMEOUT_MS).toBe(240_000)
-    expect(GENERATING_TIMEOUT_MS / 1000).toBeGreaterThan(last)
+    for (const type of ['필기', '면접'] as const) {
+      expect(GENERATING_TIMEOUT_MS / 1000).toBeGreaterThan(generatingSpanSec(type))
+    }
   })
 
-  it('필기 58초 문구가 검색 제거를 반영한다 (PRD 8.12, 21.11)', () => {
-    const step = GENERATING_STEPS.필기.find((s) => s.at === 58)!
-    expect(step.text).toBe('남은 기간 배분을 계산하는 중이에요')
+  it('필기 7번 문구가 검색 제거를 반영한다 (PRD 8.12, 21.11)', () => {
+    expect(GENERATING_STEPS.필기[6].text).toBe('남은 기간 배분을 계산하는 중이에요')
     // 과목 검색을 없앴으므로 과목이라는 말을 쓰지 않습니다
     expect(GENERATING_STEPS.필기.some((s) => s.text.includes('과목'))).toBe(false)
+  })
+
+  it('나가도 된다는 안내가 있다 (PRD 14.12)', () => {
+    for (const type of ['필기', '면접'] as const) {
+      const notice = GENERATING_NOTICE[type]
+      expect(notice).toHaveLength(2)
+      // 이 문구가 없으면 나가면 결제 금액을 잃는다고 생각해 억지로 기다립니다
+      expect(notice[1]).toContain('닫으셔도')
+    }
   })
 
   it('자리표시자를 남기지 않는다', () => {
