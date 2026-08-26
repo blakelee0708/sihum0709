@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
-import { useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 
 import {
   SESSION_KEY,
@@ -25,7 +25,14 @@ import {
   type Step,
   type StepId,
 } from '@/lib/content/chat-flow'
-import { NEXT_QUESTION_DELAY_MS, OPTION_DELAY_MS, TYPING_MS } from '@/lib/motion'
+import {
+  EASE,
+  NEXT_QUESTION_DELAY_MS,
+  OPTION_DELAY_MS,
+  PAGE_EXIT_DURATION,
+  PAGE_EXIT_Y,
+  TYPING_MS,
+} from '@/lib/motion'
 import { track } from '@/lib/analytics'
 import type { ExamType, CompanyScale, WorkType } from '@/lib/saju/constants'
 import type { ExamPeriod } from '@/lib/content/assemble'
@@ -62,6 +69,8 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
   const [freeInput, setFreeInput] = useState(false)
   /** 첫 인사 전에만 뜨는 타이핑 표시 (FIX_3 [8]-4) */
   const [typing, setTyping] = useState(false)
+  /** 결과로 넘어가기 직전, 화면이 먼저 지워지는 중 (FIX_3 [10]-3) */
+  const [leaving, setLeaving] = useState(false)
 
   const steps = getSteps(answers)
   const current = steps[steps.length - 1]
@@ -205,8 +214,30 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
     setAnswers((prev) => resetFrom(prev, id))
   }
 
+  /**
+   * 결과로 넘어갑니다 (FIX_3 [10]-3).
+   *
+   * App Router에서 나가는 화면을 AnimatePresence로 붙잡으려면 라우트를
+   * 직접 들고 있어야 하고, 그러면 서버 컴포넌트 스트리밍과 프리페치가
+   * 어긋납니다 (app/template.tsx 주석). 대신 떠나는 화면이 스스로 먼저
+   * 지워지고 나서 이동하면 mode="wait"와 같은 결과가 됩니다.
+   */
+  function leaveToResult() {
+    if (shouldReduceMotion) {
+      onFinish(answers)
+      return
+    }
+    setLeaving(true)
+    setTimeout(() => onFinish(answers), PAGE_EXIT_DURATION * 1000)
+  }
+
   return (
-    <div className="flex h-[100dvh] flex-col" style={{ background: 'var(--bg)' }}>
+    <motion.div
+      className="flex h-[100dvh] flex-col"
+      style={{ background: 'var(--bg)' }}
+      animate={leaving ? { opacity: 0, y: PAGE_EXIT_Y } : { opacity: 1, y: 0 }}
+      transition={{ duration: PAGE_EXIT_DURATION, ease: EASE }}
+    >
       <header className="flex items-center px-2 py-2">
         <button
           type="button"
@@ -258,7 +289,7 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
                 onAnswer={answer}
                 onBirthDate={answerBirthDate}
                 onEditFrom={editFrom}
-                onFinish={() => onFinish(answers)}
+                onFinish={leaveToResult}
                 finishLabel={finishLabel}
               />
             </div>
@@ -268,7 +299,7 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
           <div ref={bottomRef} />
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 

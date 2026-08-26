@@ -310,10 +310,45 @@ export function haptic(ms = 8): void {
 }
 
 /**
- * 페이지 전환 (PRD 21.12)
+ * 페이지 전환 (PRD 21.12, FIX_3 [10]-3)
  *
- * 카드 리빌은 24px이지만 화면 전체가 그만큼 움직이면 멀미가 납니다.
- * 절반만 씁니다.
+ * 카드 리빌은 32px이지만 화면 전체가 그만큼 움직이면 멀미가 납니다.
+ * 12px만 씁니다.
+ *
+ * 커튼 효과는 쓰지 않습니다. 처음에는 화려하지만 매번 보면 무겁습니다.
  */
 export const PAGE_ENTER_Y = 12
-export const PAGE_ENTER_DURATION = 0.3
+export const PAGE_ENTER_DURATION = 0.35
+
+/**
+ * 화면을 떠날 때 (FIX_3 [10]-3).
+ *
+ * 나가는 화면이 완전히 사라진 뒤 들어오는 화면이 시작돼야 합니다.
+ * 겹치면 두 화면이 한꺼번에 보입니다. 라우팅을 가로채는 대신 떠나는
+ * 화면이 스스로 먼저 지워지고 나서 이동합니다 (app/template.tsx 주석).
+ */
+export const PAGE_EXIT_Y = -8
+export const PAGE_EXIT_DURATION = 0.2
+
+/**
+ * 최소 로딩 시간 (FIX_3 [10]-2).
+ *
+ * 계산은 즉시 끝납니다. 그런데 누르자마자 화면이 바뀌면 눌린 것을
+ * 인지할 틈이 없어, 눌렸는지 확신이 안 서고 한 번 더 누르게 됩니다.
+ */
+export const MIN_LOADING_MS = 800
+
+/**
+ * 결과 화면 진입 순서 (FIX_3 [10]-4).
+ *
+ *   0.0s  화면 진입
+ *   0.1s  캐릭터 + 뱃지
+ *   0.2s  운 지수 카운트업 시작
+ *   0.3s  카드 1, 이후는 스크롤 리빌
+ */
+export const RESULT_HEADER_DELAY = 0.1
+export const RESULT_SCORE_DELAY = 0.2
+export const RESULT_FIRST_CARD_DELAY = 0.3
+
+/** 숫자가 0에서 올라가는 시간 */
+export const COUNT_UP_DURATION = 1.2

@@ -230,11 +230,12 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
         todayScore={result.todayScore}
         potentialScore={result.potentialScore}
         potentialLocked
+        countUp
         onBadgeClick={() => setModalOpen(true)}
       />
 
       <div className="mt-section space-y-card-gap px-screen">
-        {result.cards.map((card) => {
+        {result.cards.map((card, cardIndex) => {
           const lock = card.lock ? (
             <CardLockTeaser
               lock={card.lock}
@@ -247,7 +248,12 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
           // 카드 2 — 명식 표와 오행 분포. 리포트 섹션 1의 컴포넌트를 재사용합니다
           if (card.kind === 'saju') {
             return (
-              <ResultCard key={card.id} title={card.title} paragraphs={card.paragraphs}>
+              <ResultCard
+                key={card.id}
+                index={cardIndex}
+                title={card.title}
+                paragraphs={card.paragraphs}
+              >
                 <SajuTable saju={result.saju} />
                 <div className="mt-4">
                   <ElementBar
@@ -263,7 +269,12 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
 
           if (card.kind === 'weekFlow') {
             return (
-              <ResultCard key={card.id} title={card.title} paragraphs={card.paragraphs}>
+              <ResultCard
+                key={card.id}
+                index={cardIndex}
+                title={card.title}
+                paragraphs={card.paragraphs}
+              >
                 <WeekFlowChart data={result.weekFlow} />
                 {lock}
               </ResultCard>
@@ -272,7 +283,12 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
 
           if (card.kind === 'methodFit') {
             return (
-              <ResultCard key={card.id} title={card.title} paragraphs={card.paragraphs}>
+              <ResultCard
+                key={card.id}
+                index={cardIndex}
+                title={card.title}
+                paragraphs={card.paragraphs}
+              >
                 <MethodFitChart fit={result.methodFit} examType={result.input.examType} />
                 {lock}
               </ResultCard>
@@ -280,7 +296,12 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
           }
 
           return (
-            <ResultCard key={card.id} title={card.title} paragraphs={card.paragraphs}>
+            <ResultCard
+              index={cardIndex}
+              key={card.id}
+              title={card.title}
+              paragraphs={card.paragraphs}
+            >
               {lock}
             </ResultCard>
           )

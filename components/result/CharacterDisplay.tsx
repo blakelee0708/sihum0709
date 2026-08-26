@@ -6,11 +6,16 @@
  * 캐릭터는 왼쪽, 뱃지는 오른쪽에 배치합니다.
  * 말풍선은 캐릭터 상단에 CSS로 겹칩니다. 문구가 D-day에 따라 바뀌므로
  * 이미지에 넣지 않습니다.
+ *
+ * 결과 화면에 들어오고 0.1초 뒤에 이 블록이 뜹니다 (FIX_3 [10]-4).
+ * 카드보다 먼저 자리를 잡아야 시선이 위에서 아래로 흐릅니다.
  */
 
 import Image from 'next/image'
+import { motion, useReducedMotion } from 'framer-motion'
 
 import type { CharacterStage, TypeBadge } from '@/lib/content/characters'
+import { EASE, PAGE_ENTER_Y, RESULT_HEADER_DELAY, REVEAL_DURATION } from '@/lib/motion'
 import TypeBadgeView from './TypeBadge'
 import ScorePair from './ScorePair'
 
@@ -28,6 +33,8 @@ interface Props {
   potentialScore: number
   /** 무료 결과에서는 숫자를 가립니다 (PRD 3.2) */
   potentialLocked?: boolean
+  /** 결과 화면 진입에서만 켭니다. 점수가 0에서 올라옵니다 */
+  countUp?: boolean
   onBadgeClick: () => void
 }
 
@@ -48,10 +55,24 @@ export default function CharacterDisplay({
   todayScore,
   potentialScore,
   potentialLocked = false,
+  countUp = false,
   onBadgeClick,
 }: Props) {
+  const shouldReduceMotion = useReducedMotion()
+  const enter = shouldReduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: PAGE_ENTER_Y },
+        animate: { opacity: 1, y: 0 },
+        transition: {
+          duration: REVEAL_DURATION,
+          delay: RESULT_HEADER_DELAY,
+          ease: EASE,
+        },
+      }
+
   return (
-    <section className="px-screen pt-4">
+    <motion.section className="px-screen pt-4" {...enter}>
       <p className="text-headline">
         {name ? `안녕하세요, ${name}님` : '안녕하세요'}
       </p>
@@ -106,8 +127,9 @@ export default function CharacterDisplay({
           examType={examType}
           potentialScore={potentialScore}
           potentialLocked={potentialLocked}
+          countUp={countUp}
         />
       </div>
-    </section>
+    </motion.section>
   )
 }

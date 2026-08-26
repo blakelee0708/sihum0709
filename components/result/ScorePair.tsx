@@ -8,9 +8,15 @@
  *
  * 발휘 지수는 유료 전용입니다. 무료에서는 숫자를 "???%"로 가립니다.
  * 셋 중 하나만 가려져 있는 것이 궁금증을 만듭니다 (PRD 3.2).
+ *
+ * 숫자는 0에서 올라옵니다 (FIX_3 [10]-4). 결과 화면에 들어오고 0.2초
+ * 뒤에 시작해, 캐릭터와 뱃지가 먼저 자리를 잡은 다음 점수가 채워집니다.
  */
 
 import { Lock } from 'lucide-react'
+
+import CountUp from '@/components/motion/CountUp'
+import { RESULT_SCORE_DELAY } from '@/lib/motion'
 
 // 색 함수는 'use client' 밖에 둡니다. 여기서 export하면 서버 컴포넌트가
 // 호출할 때 클라이언트 참조가 넘어와 터집니다 (score-color.ts 주석 참고).
@@ -20,6 +26,8 @@ interface Props {
   examDayScore: number
   todayScore: number
   examType: string
+  /** 결과 화면 진입에서만 카운트업합니다. 리포트 본문에서는 끕니다 */
+  countUp?: boolean
   /** PRD 8.7 잠재력 발휘 지수. locked가 true면 숫자를 가립니다 */
   potentialScore?: number
   /** 무료 결과에서는 true */
@@ -32,6 +40,7 @@ export default function ScorePair({
   examType,
   potentialScore,
   potentialLocked = false,
+  countUp = false,
 }: Props) {
   const label = examType === '면접' ? '면접 당일 운' : '시험 당일 운'
   const showPotential = potentialScore !== undefined
@@ -49,7 +58,11 @@ export default function ScorePair({
           {label}
         </p>
         <p className="text-score" style={{ color: scoreColor(examDayScore) }}>
-          {examDayScore}
+          {countUp ? (
+            <CountUp value={examDayScore} delay={RESULT_SCORE_DELAY} />
+          ) : (
+            examDayScore
+          )}
         </p>
       </div>
 
@@ -61,7 +74,11 @@ export default function ScorePair({
           오늘의 운
         </p>
         <p className="text-score" style={{ color: scoreColor(todayScore) }}>
-          {todayScore}
+          {countUp ? (
+            <CountUp value={todayScore} delay={RESULT_SCORE_DELAY} />
+          ) : (
+            todayScore
+          )}
         </p>
       </div>
 
@@ -81,7 +98,11 @@ export default function ScorePair({
             </p>
           ) : (
             <p className="text-score" style={{ color: potentialColor(potentialScore) }}>
-              {potentialScore}%
+              {countUp ? (
+                <CountUp value={potentialScore} delay={RESULT_SCORE_DELAY} suffix="%" />
+              ) : (
+                `${potentialScore}%`
+              )}
             </p>
           )}
         </div>

@@ -38,6 +38,8 @@ interface Props {
   children: ReactNode
   /** 목록에서 순차로 나타나게 할 때 (delay = index × 0.06초) */
   index?: number
+  /** 진입 순서를 맞춰야 할 때 더하는 지연 (초). FIX_3 [10]-4 */
+  delay?: number
   className?: string
   style?: CSSProperties
   /** li, section 등으로 바꿔야 할 때 */
@@ -47,6 +49,7 @@ interface Props {
 export default function Reveal({
   children,
   index = 0,
+  delay = 0,
   className,
   style,
   as = 'div',
@@ -70,7 +73,7 @@ export default function Reveal({
       initial={{ opacity: 0, y: REVEAL_Y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: REVEAL_MARGIN }}
-      transition={{ ...REVEAL_SPRING, delay: index * REVEAL_STAGGER }}
+      transition={{ ...REVEAL_SPRING, delay: delay + index * REVEAL_STAGGER }}
     >
       {children}
     </Component>

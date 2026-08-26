@@ -10,17 +10,24 @@
  */
 
 import Reveal from '@/components/motion/Reveal'
+import { RESULT_FIRST_CARD_DELAY } from '@/lib/motion'
 
 interface Props {
   title: string
   children?: React.ReactNode
   paragraphs?: string[]
+  /**
+   * 카드 순서. 첫 카드만 결과 진입 순서에 맞춰 0.3초 늦게 뜹니다
+   * (FIX_3 [10]-4). 나머지는 스크롤에 걸리므로 지연이 필요 없습니다.
+   */
+  index?: number
 }
 
-export default function ResultCard({ title, children, paragraphs }: Props) {
+export default function ResultCard({ title, children, paragraphs, index = 0 }: Props) {
   return (
     <Reveal
       as="article"
+      delay={index === 0 ? RESULT_FIRST_CARD_DELAY : 0}
       className="p-card"
       style={{
         background: 'var(--surface)',
