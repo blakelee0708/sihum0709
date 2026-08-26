@@ -5,7 +5,7 @@
  * 호출부(pipeline.ts)는 이 인터페이스만 알면 됩니다.
  */
 
-import type { ReportSpec } from './spec'
+import type { ReportSpec, ReportType } from './spec'
 import type { PromptMaterial } from './prompt'
 
 /**
@@ -45,6 +45,51 @@ export function getMaxTokens(): number {
   return Number(process.env.AI_MAX_TOKENS) || DEFAULT_MAX_TOKENS
 }
 
+/**
+ * 사고량 단계 (PRD 8.13).
+ *
+ * Sonnet 5에서 `thinking: { type: 'enabled', budget_tokens: N }`은 400입니다.
+ * 이 모델 계열에서 budget_tokens는 제거됐고, 지원되는 조절 수단은
+ * `output_config.effort` 하나입니다.
+ *
+ *   low / medium / high / xhigh / max   (미지정 시 high)
+ *
+ * 실측에서 출력 토큰의 3분의 2 이상이 thinking이었고 그것이 시간과 원가의
+ * 병목이었습니다. 검색은 2초라 병목이 아닙니다. 따라서 effort를 내려
+ * 사고량을 줄입니다.
+ *
+ * 면접은 검색 결과를 읽고 회사·직무를 엮어야 해서 필기보다 한 단계 높입니다.
+ */
+export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+
+const EFFORTS: Effort[] = ['low', 'medium', 'high', 'xhigh', 'max']
+
+const DEFAULT_EFFORT: Record<ReportType, Effort> = {
+  필기: 'low',
+  면접: 'medium',
+}
+
+function parseEffort(value: string | undefined): Effort | null {
+  if (!value) return null
+  const v = value.trim().toLowerCase()
+  return (EFFORTS as string[]).includes(v) ? (v as Effort) : null
+}
+
+/**
+ * 호출 시점에 읽습니다. getMaxTokens와 같은 이유입니다 (.env.local 로드 순서).
+ *
+ *   AI_EFFORT_WRITTEN    필기
+ *   AI_EFFORT_INTERVIEW  면접
+ *
+ * 잘못된 값은 조용히 무시하고 기본값을 씁니다. 오타 하나로 전체 생성이
+ * 400으로 죽는 것보다 낫습니다.
+ */
+export function getEffort(type: ReportType): Effort {
+  const raw =
+    type === '필기' ? process.env.AI_EFFORT_WRITTEN : process.env.AI_EFFORT_INTERVIEW
+  return parseEffort(raw) ?? DEFAULT_EFFORT[type]
+}
+
 export type ProviderName = 'anthropic' | 'deepseek'
 
 export interface GenerateResult {
@@ -56,6 +101,15 @@ export interface GenerateResult {
   /** 실제로 쓴 provider와 model. reports 테이블에 기록합니다 */
   provider: ProviderName
   model: string
+  /** 실제로 쓴 사고량 단계. 목업이면 null */
+  effort: Effort | null
+  /**
+   * 응답의 stop_reason. 실측 기록용입니다.
+   *
+   * max_tokens는 여기까지 오지 못하고 '출력 잘림'으로 던져집니다.
+   * 정상 흐름에서는 항상 end_turn입니다.
+   */
+  stopReason: string | null
   /** API 키가 없어 목업을 돌려준 경우 */
   mock: boolean
 }

@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest'
 
 import { runPipeline } from '../lib/ai/pipeline'
 import { checkLength } from '../lib/ai/length'
-import { getMaxTokens } from '../lib/ai/provider'
+import { getEffort, getMaxTokens } from '../lib/ai/provider'
 import { SHIPSIN_KEYS } from '../lib/saju/shipsin'
 import { BRANCHES } from '../lib/saju/constants'
 import type { UserInput } from '../lib/content/assemble'
@@ -55,11 +55,11 @@ function won(inputTokens: number, outputTokens: number): number {
   return Math.round(usd * 1400)
 }
 
-/** PRD 14.11 목표 소요 (초) */
-const TIME_GOAL: Record<'필기' | '면접', number> = { 필기: 90, 면접: 130 }
+/** 지시받은 목표 소요 (초) */
+const TIME_GOAL: Record<'필기' | '면접', number> = { 필기: 120, 면접: 160 }
 
 /** 지시받은 원가 목표 (원) */
-const COST_GOAL: Record<'필기' | '면접', number> = { 필기: 110, 면접: 180 }
+const COST_GOAL: Record<'필기' | '면접', number> = { 필기: 150, 면접: 220 }
 
 const WRITTEN: UserInput = {
   name: '김민준',
@@ -99,6 +99,10 @@ interface Measured {
   seconds: number
   /** 검색에 쓴 시간 (초). 필기는 0 */
   searchSeconds: number
+  /** 실제로 쓴 사고량 단계 */
+  effort: string
+  /** 응답의 stop_reason. 잘림이면 실패로 던져지므로 note에 남습니다 */
+  stopReason: string
   /** AI 생성에 쓴 시간 (초) */
   aiSeconds: number
   total: number
@@ -117,6 +121,8 @@ interface Measured {
   shipsinInPattern: string[]
   /** PRD 8.6 — 섹션 4의 12지지 */
   branchesInTimeline: string[]
+  /** 생성 본문. effort를 낮췄을 때 품질이 떨어지는지 눈으로 보려고 남깁니다 */
+  body: Record<string, string>
 }
 
 /** 오행 이름 뒤에 숫자가 붙거나, 숫자 뒤에 점/개가 붙는 형태를 찾습니다 */
@@ -149,6 +155,8 @@ async function measure(
       outputTokens: out.generated.outputTokens,
       seconds: Math.round(totalMs / 100) / 10,
       searchSeconds: Math.round(out.searchMs / 100) / 10,
+      effort: out.generated.effort ?? '-',
+      stopReason: out.generated.stopReason ?? '-',
       aiSeconds: Math.round(out.generated.generationMs / 100) / 10,
       total: length.total,
       target: length.target,
@@ -170,6 +178,7 @@ async function measure(
       branchesInTimeline: BRANCHES.filter((b) =>
         (out.generated.content.dayTimeline ?? '').includes(`${b}시`)
       ),
+      body: out.generated.content,
     }
   } catch (e) {
     return {
@@ -181,6 +190,13 @@ async function measure(
       outputTokens: 0,
       seconds: Math.round((Date.now() - started) / 100) / 10,
       searchSeconds: 0,
+      effort: getEffort(label),
+      // 잘림이면 '출력 잘림'으로 던져집니다. note에 max_tokens 값이 남습니다
+      stopReason: /출력 잘림|max_tokens/.test(
+        e instanceof Error ? e.message : String(e)
+      )
+        ? 'max_tokens'
+        : '-',
       aiSeconds: 0,
       total: 0,
       target: 0,
@@ -189,8 +205,34 @@ async function measure(
       sectionsWithoutNumber: [],
       shipsinInPattern: [],
       branchesInTimeline: [],
+      body: {},
     }
   }
+}
+
+/** 생성 본문 전문. 품질 판단은 표가 아니라 이걸 읽어서 합니다 */
+function renderBodies(rows: Measured[]): string {
+  const lines: string[] = ['# 리포트 생성 본문 (품질 확인용)', '']
+
+  for (const r of rows) {
+    lines.push(`## ${r.label} ${r.run}회차 · effort ${r.effort}`)
+    lines.push('')
+    if (!r.ok) {
+      lines.push(`실패: ${r.note}`)
+      lines.push('')
+      continue
+    }
+    for (const s of r.sections) {
+      const text = r.body[s.key]
+      if (!text) continue
+      lines.push(`### ${s.title} (${s.chars}자 / ${s.minChars}~${s.maxChars})`)
+      lines.push('')
+      lines.push(text)
+      lines.push('')
+    }
+  }
+
+  return lines.join('\n')
 }
 
 function render(rows: Measured[]): string {
@@ -199,26 +241,32 @@ function render(rows: Measured[]): string {
   lines.push('# 리포트 생성 실측')
   lines.push('')
   lines.push(
-    `모델 \`${process.env.AI_MODEL ?? 'claude-sonnet-5'}\` · max_tokens ${getMaxTokens()}`
+    `모델 \`${process.env.AI_MODEL ?? 'claude-sonnet-5'}\` · max_tokens ${getMaxTokens()} · ` +
+      `effort 필기 \`${getEffort('필기')}\` / 면접 \`${getEffort('면접')}\``
   )
   lines.push('')
   lines.push('원가는 백만 토큰당 입력 $2 / 출력 $10, 환율 1,400원 기준입니다 (PRD 8.13).')
   lines.push('출력 토큰에는 adaptive thinking 분량이 포함됩니다.')
   lines.push('')
-  lines.push('목표는 필기 90초 · 4,290~5,700자 · 110원, 면접 130초 · 4,860~6,340자 · 180원입니다.')
+  lines.push(
+    `목표는 필기 ${TIME_GOAL.필기}초 · ${COST_GOAL.필기}원, ` +
+      `면접 ${TIME_GOAL.면접}초 · ${COST_GOAL.면접}원입니다. 분량은 섹션 범위 합계를 따릅니다.`
+  )
   lines.push('')
 
   lines.push('## 요약')
   lines.push('')
-  lines.push('| 구분 | 회차 | 결과 | 전체 | 검색 | AI | 입력 | 출력 | 분량 | 범위 | 원가 |')
-  lines.push('|---|---|---|---|---|---|---|---|---|---|---|')
+  lines.push(
+    '| 구분 | 회차 | effort | 결과 | 전체 | 검색 | AI | 입력 | 출력 | 본문 | 범위 | 원가 | stop_reason |'
+  )
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|')
   for (const r of rows) {
     const inRange = r.total >= r.target && r.total <= r.targetMax ? 'O' : 'X'
     lines.push(
-      `| ${r.label} | ${r.run} | ${r.ok ? '성공' : '실패'} | ${r.seconds}초 | ` +
+      `| ${r.label} | ${r.run} | ${r.effort} | ${r.ok ? '성공' : '실패'} | ${r.seconds}초 | ` +
         `${r.searchSeconds}초 | ${r.aiSeconds}초 | ${r.inputTokens.toLocaleString()} | ` +
         `${r.outputTokens.toLocaleString()} | ${r.total.toLocaleString()}자 | ` +
-        `${inRange} | ${won(r.inputTokens, r.outputTokens)}원 |`
+        `${inRange} | ${won(r.inputTokens, r.outputTokens)}원 | ${r.stopReason} |`
     )
   }
   lines.push('')
@@ -249,6 +297,7 @@ function render(rows: Measured[]): string {
     lines.push(`## ${r.label} ${r.run}회차`)
     lines.push('')
     lines.push(`- 상태: ${r.ok ? '성공' : '실패'} (${r.note})`)
+    lines.push(`- effort: ${r.effort} · stop_reason: ${r.stopReason}`)
     lines.push(`- 소요: 전체 ${r.seconds}초 = 검색 ${r.searchSeconds}초 + AI ${r.aiSeconds}초`)
     lines.push(
       `- 오행 수치가 없는 섹션: ${
@@ -305,9 +354,15 @@ describe.skipIf(!ENABLED)('리포트 생성 실측 (PRD 8.3, 8.4, 8.13)', () => 
         }
       }
 
+      const suffix = only ? `-${only}` : ''
       writeFileSync(
-        join(process.cwd(), 'test', only ? `report-output-${only}.md` : 'report-output.md'),
+        join(process.cwd(), 'test', `report-output${suffix}.md`),
         render(rows),
+        'utf-8'
+      )
+      writeFileSync(
+        join(process.cwd(), 'test', `report-output-body${suffix}.md`),
+        renderBodies(rows),
         'utf-8'
       )
 

@@ -53,6 +53,8 @@ export class DeepSeekProvider implements AIProvider {
         generationMs: Date.now() - started,
         provider: this.name,
         model: this.model(),
+        effort: null,
+        stopReason: null,
         mock: true,
       }
     }

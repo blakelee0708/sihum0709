@@ -1529,20 +1529,48 @@ Sonnet 5의 백만 토큰당 가격은 입력 2달러, 출력 10달러입니다.
 
 3,900원 대비 최대 4.0퍼센트입니다.
 
+#### 사고량 조절 — output_config.effort
+
+출력 토큰에는 thinking 분량이 포함됩니다. 실측 결과 출력 토큰의 3분의 2가 thinking이었고, 시간과 원가의 병목은 검색이 아니라 이 thinking입니다. 검색은 2초이고 이미 병렬입니다.
+
+Sonnet 5에서 사고량을 조절하는 지원되는 수단은 `output_config.effort` 하나입니다.
+
+```
+thinking 미설정                    OK (adaptive가 기본)
+thinking.type = 'adaptive'         OK
+thinking.type = 'enabled'          400
+  budget_tokens는 Sonnet 5 · Opus 5 · Fable 5에서 제거됐습니다
+output_config.effort = low         OK
+```
+
+`budget_tokens`를 넣으면 모든 리포트 생성이 400으로 실패합니다. 넣지 마십시오. 위 표는 이 프로젝트의 키로 실제 호출해 확인한 결과입니다.
+
+effort는 `low` / `medium` / `high` / `xhigh` / `max` 다섯 단계이고 미지정 시 `high`입니다. 설정값은 아래와 같습니다.
+
+```
+AI_EFFORT_WRITTEN=low        필기
+AI_EFFORT_INTERVIEW=medium   면접
+```
+
+면접이 한 단계 높은 이유는 검색 결과를 읽고 회사·직무를 본문에 엮어야 하기 때문입니다. 필기는 계산값만 재료로 쓰므로 `low`로 충분합니다.
+
+구현은 `lib/ai/provider.ts`의 `getEffort(type)`가 환경변수를 호출 시점에 읽고, `lib/ai/providers/anthropic.ts`가 `messages.stream`에 `output_config: { effort }`로 넘깁니다. 잘못된 값은 무시하고 기본값을 씁니다.
+
 #### 원가 통제 장치
 
 원가를 결정하는 것은 실제 생성된 토큰량이지 max_tokens가 아닙니다. max_tokens는 잘림 방지선이며 과금 기준이 아닙니다. 상한을 올려도 실제 생성량만큼만 청구됩니다.
 
 ```typescript
 // 원가 통제
-searchContext.slice(0, 6000)  // 입력 통제
-// 프롬프트의 섹션별 분량 지시  // 출력 통제
+searchContext.slice(0, 6000)     // 입력 통제
+// 프롬프트의 섹션별 분량 지시    // 출력 통제
+output_config: { effort }        // thinking 통제
 
 // 잘림 방지 (원가와 무관)
 max_tokens: 32000
 ```
 
-출력 토큰에는 adaptive thinking 분량이 포함됩니다. 실측 결과 출력 토큰의 절반 이상이 thinking입니다. 12000과 20000에서 모두 잘림이 발생해 32000으로 설정했습니다.
+12000과 20000에서 모두 잘림이 발생해 max_tokens를 32000으로 설정했습니다. effort를 내린 뒤로는 출력이 그 절반 아래로 내려갔으나, 잘린 리포트는 결제한 사용자에게 보여줄 수 없어 상한은 넉넉히 둡니다.
 
 응답의 stop_reason이 max_tokens이면 잘린 것이므로 실패로 처리하고 사용자에게 보여주지 않습니다.
 

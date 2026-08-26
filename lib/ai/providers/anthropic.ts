@@ -6,7 +6,8 @@
  * 1. temperature / top_p / top_k 를 설정하지 않습니다.
  *    Sonnet 5는 기본값이 아닌 샘플링 값을 주면 400을 돌려줍니다.
  * 2. thinking 파라미터를 수동으로 설정하지 않습니다.
- *    adaptive thinking이 기본으로 켜져 있습니다.
+ *    adaptive thinking이 기본으로 켜져 있고, budget_tokens는 이 모델에서
+ *    제거되어 넣으면 400이 납니다. 사고량은 output_config.effort로 조절합니다.
  * 3. max_tokens는 잘림 방지선입니다. 원가 통제 장치가 아니므로 넉넉히 둡니다.
  *    PRD 8.13이 정한 기본값 12000. AI_MAX_TOKENS로 덮어씁니다.
  * 4. 시스템 프롬프트에 cache_control을 걸어 반복 비용을 줄입니다.
@@ -30,6 +31,7 @@ import { buildUserPrompt, SYSTEM_PROMPT, type PromptMaterial } from '../prompt'
 import type { ReportSpec } from '../spec'
 import {
   GenerateError,
+  getEffort,
   getMaxTokens,
   mockContent,
   parseSections,
@@ -85,11 +87,14 @@ export class AnthropicProvider implements AIProvider {
         generationMs: Date.now() - started,
         provider: this.name,
         model,
+        effort: null,
+        stopReason: null,
         mock: true,
       }
     }
 
     const maxTokens = getMaxTokens()
+    const effort = getEffort(spec.type)
 
     const sdk = await loadSdk()
     const Anthropic = sdk.default
@@ -118,8 +123,11 @@ export class AnthropicProvider implements AIProvider {
           },
         ],
         messages: [{ role: 'user', content: buildUserPrompt(material, spec) }],
+        // 사고량 상한. 미지정 시 high입니다 (PRD 8.13).
+        output_config: { effort },
         // temperature / top_p / top_k 를 넣지 마십시오. 400이 납니다.
-        // thinking 도 넣지 마십시오. adaptive가 기본입니다.
+        // thinking 도 넣지 마십시오. adaptive가 기본이고,
+        // budget_tokens는 이 모델에서 제거되어 400이 납니다.
       })
 
       response = await stream.finalMessage()
@@ -132,7 +140,7 @@ export class AnthropicProvider implements AIProvider {
     if (response.stop_reason === 'max_tokens') {
       throw new GenerateError(
         '출력 잘림',
-        `max_tokens(${maxTokens})에 걸려 본문이 잘렸습니다`
+        `max_tokens(${maxTokens}) · effort ${effort}에 걸려 본문이 잘렸습니다`
       )
     }
 
@@ -164,6 +172,8 @@ export class AnthropicProvider implements AIProvider {
       generationMs: Date.now() - started,
       provider: this.name,
       model,
+      effort,
+      stopReason: response.stop_reason,
       mock: false,
     }
   }
