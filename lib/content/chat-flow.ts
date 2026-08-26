@@ -1,18 +1,23 @@
 /**
- * 대화형 입력 흐름 (PRD 14.6, 14.7)
+ * 대화형 입력 흐름 (PRD 10.1 ~ 10.4, 14.6, 14.7)
  *
  * 자유 대화가 아니라 합격이가 안내하는 형식입니다.
  * 버튼, 달력, 시간 선택기만 제공하며 사용자가 예상 밖의 입력을 할 수 없습니다.
+ *
+ * 대분류 10개 중 자격증·어학만 하위 그룹을 한 번 더 묻고(10.3),
+ * 대학교 시험만 시험 기간을 묻습니다(10.4).
  */
 
 import {
   COMPANY_SCALES,
+  EXAM_TYPES,
   WORK_TYPES,
   WORK_TYPE_LABEL,
   type CompanyScale,
   type ExamType,
   type WorkType,
 } from '../saju/constants'
+import { EXAM_PERIODS, type ExamPeriod } from './assemble'
 import {
   COMMON_SCRIPTS,
   DONE_WITHOUT_NAME,
@@ -22,8 +27,10 @@ import { PRESET_CATEGORIES, getCategory, getExamOptions } from './fragments'
 
 export type StepId =
   | 'category'
+  | 'subGroup'
   | 'examName'
   | 'examType'
+  | 'examPeriod'
   | 'companyScale'
   | 'workType'
   | 'jobTitle'
@@ -44,8 +51,14 @@ export type WidgetKind =
 
 export interface Answers {
   category?: string
+  /** 자격증 · 어학에서만 씁니다 (PRD 10.3) */
+  subGroup?: string
   examName?: string
+  /** 프리셋 버튼이 아니라 직접 입력한 경우의 원본 (PRD 10.3) */
+  examNameRaw?: string
   examType?: ExamType
+  /** 대학교 시험에서만 씁니다 (PRD 10.4) */
+  examPeriod?: ExamPeriod
   companyScale?: CompanyScale
   workType?: WorkType
   /** 건너뛰면 null */
@@ -91,11 +104,41 @@ export interface Step {
  */
 const EXAM_TYPE_QUESTION = ['어떤 방식으로 보세요?']
 
-const EXAM_TYPE_OPTIONS: StepOption[] = [
-  { value: '필기', label: '필기' },
-  { value: '면접', label: '면접' },
-  { value: '실기', label: '실기' },
-]
+/** PRD 10.2 방식 4분류 */
+const EXAM_TYPE_OPTIONS: StepOption[] = EXAM_TYPES.map((t) => ({
+  value: t,
+  label: t,
+}))
+
+/**
+ * 시험명에서 방식을 추론합니다 (PRD 10.2).
+ *
+ * 대분류의 defaultType이 있어도 시험명이 방식을 말해주면 그쪽을 씁니다.
+ * "승진 면접"은 승진·사내시험 분류지만 면접이고, "미술 실기"는
+ * 오디션·실기 분류지만 실기입니다.
+ *
+ * 어학은 전부 필기로 처리합니다. 토익 스피킹이나 오픽이 말하기 시험이지만
+ * 심사 성격이 오디션과 다르고 사용자도 필기로 인식하는 경우가 많습니다.
+ */
+export function inferType(
+  examName: string,
+  categoryDefault: ExamType | null
+): ExamType | null {
+  if (examName.includes('면접')) return '면접'
+  if (examName.includes('오디션')) return '오디션'
+  if (examName.includes('실기')) return '실기'
+  return categoryDefault
+}
+
+/**
+ * 시험명 정규화 (PRD 10.3).
+ *
+ * 같은 시험을 사람마다 다르게 입력합니다. 관리자 화면에서 집계해 프리셋에
+ * 추가하려면 표기를 맞춰야 합니다. 원본은 examNameRaw에 따로 남깁니다.
+ */
+export function normalizeExamName(raw: string): string {
+  return raw.trim().replace(/\s+/g, ' ').replace(/[()（）]/g, '')
+}
 
 /** 현재까지의 답변으로 다음에 물어야 할 단계 목록을 만듭니다 */
 export function getSteps(answers: Answers): Step[] {
@@ -112,7 +155,18 @@ export function getSteps(answers: Answers): Step[] {
   const category = answers.category ? getCategory(answers.category) : undefined
   if (!category) return steps
 
-  // 2. 시험명
+  // 2. 하위 그룹. 자격증 · 어학만 나옵니다 (PRD 10.3)
+  if (category.subGroups) {
+    steps.push({
+      id: 'subGroup',
+      question: [...COMMON_SCRIPTS.subGroup],
+      widget: 'options',
+      options: category.subGroups.map((g) => ({ value: g.id, label: g.label })),
+    })
+    if (!answers.subGroup) return steps
+  }
+
+  // 3. 시험명
   // 면접도 {exam} 변수를 쓰는 조각(methodIntro)이 있어 시험명을 받습니다.
   if (category.freeInputOnly) {
     steps.push({
@@ -129,16 +183,20 @@ export function getSteps(answers: Answers): Step[] {
         s.replace('{category}', stripCategoryLabel(category.label))
       ),
       widget: 'optionsWithFreeInput',
-      options: getExamOptions(category).map((e) => ({ value: e, label: e })),
+      options: getExamOptions(category, answers.subGroup).map((e) => ({
+        value: e,
+        label: e,
+      })),
       placeholder: '예) 국가직 9급 공무원, LEET, 토익',
       icon: 'keyboard',
     })
   }
   if (!answers.examName) return steps
 
-  // 3. 방식. defaultType이 있으면 건너뜁니다 (PRD 14.7)
-  const type = answers.examType ?? category.defaultType ?? undefined
-  if (!category.defaultType) {
+  // 4. 방식. 시험명이 방식을 말해주면 그것을, 아니면 defaultType을 씁니다 (PRD 10.2)
+  const inferred = inferType(answers.examName, category.defaultType ?? null)
+  const type = answers.examType ?? inferred ?? undefined
+  if (!inferred) {
     steps.push({
       id: 'examType',
       question: EXAM_TYPE_QUESTION,
@@ -150,6 +208,17 @@ export function getSteps(answers: Answers): Step[] {
   if (!type) return steps
 
   const isInterview = type === '면접'
+
+  // 5. 시험 기간. 대학교 시험만 나옵니다 (PRD 10.4)
+  if (category.hasExamPeriod) {
+    steps.push({
+      id: 'examPeriod',
+      question: [...COMMON_SCRIPTS.examPeriod],
+      widget: 'options',
+      options: EXAM_PERIODS.map((p) => ({ value: p, label: p })),
+    })
+    if (!answers.examPeriod) return steps
+  }
 
   // 4-6. 면접 전용
   if (isInterview) {
@@ -271,10 +340,16 @@ export function formatAnswer(step: Step, answers: Answers): string | null {
       const c = answers.category ? getCategory(answers.category) : undefined
       return c?.label ?? null
     }
+    case 'subGroup': {
+      const c = answers.category ? getCategory(answers.category) : undefined
+      return c?.subGroups?.find((g) => g.id === answers.subGroup)?.label ?? null
+    }
     case 'examName':
       return answers.examName ?? null
     case 'examType':
       return answers.examType ?? null
+    case 'examPeriod':
+      return answers.examPeriod ?? null
     case 'companyScale':
       return answers.companyScale ?? null
     case 'workType':
@@ -319,8 +394,10 @@ export function formatTimeLabel(time: string): string {
 /** 특정 단계로 되돌아갈 때 그 이후 답변을 지웁니다 (PRD 14.6 답변 수정) */
 const STEP_ORDER: StepId[] = [
   'category',
+  'subGroup',
   'examName',
   'examType',
+  'examPeriod',
   'companyScale',
   'workType',
   'jobTitle',
@@ -345,13 +422,18 @@ export function resetFrom(answers: Answers, stepId: StepId): Answers {
 /** 완성된 답변을 결과 계산 입력으로 바꿉니다 */
 export function toUserInput(answers: Answers) {
   const category = answers.category ? getCategory(answers.category) : undefined
-  const examType = (answers.examType ?? category?.defaultType ?? '필기') as ExamType
+  const examName = answers.examName ?? ''
+  const examType = (answers.examType ??
+    inferType(examName, category?.defaultType ?? null) ??
+    '필기') as ExamType
 
   return {
     name: answers.name ?? null,
-    examName: answers.examName ?? '',
+    examName,
+    examNameRaw: answers.examNameRaw ?? null,
     examCategory: answers.category ?? null,
     examType,
+    examPeriod: answers.examPeriod ?? null,
     examDate: answers.examDate ?? '',
     startTime: answers.startTime ?? null,
     birthDate: answers.birthDate ?? '',

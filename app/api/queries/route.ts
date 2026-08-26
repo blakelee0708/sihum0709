@@ -9,11 +9,14 @@
 
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { buildFreeResult, type UserInput } from '@/lib/content/assemble'
-import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
+import {
+  EXAM_PERIODS,
+  buildFreeResult,
+  type ExamPeriod,
+  type UserInput,
+} from '@/lib/content/assemble'
+import { EXAM_TYPES, type CompanyScale, type ExamType, type WorkType } from '@/lib/saju/constants'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server'
-
-const EXAM_TYPES: ExamType[] = ['필기', '면접', '실기']
 
 export async function POST(req: NextRequest) {
   if (!isSupabaseConfigured) {
@@ -49,8 +52,13 @@ export async function POST(req: NextRequest) {
   const input: UserInput = {
     name: body.name ?? null,
     examName: body.examName,
+    examNameRaw: body.examNameRaw ?? null,
     examCategory: body.examCategory ?? null,
     examType: body.examType as ExamType,
+    // 값이 목록에 없으면 버립니다. 대학교 시험이 아닌데 들어오는 경우도 막습니다
+    examPeriod: EXAM_PERIODS.includes(body.examPeriod as ExamPeriod)
+      ? (body.examPeriod as ExamPeriod)
+      : null,
     examDate: body.examDate,
     startTime: body.startTime ?? null,
     birthDate: body.birthDate,
@@ -81,8 +89,10 @@ export async function POST(req: NextRequest) {
     .insert({
       user_id: user.id,
       exam_name: input.examName,
+      exam_name_raw: input.examNameRaw,
       exam_category: input.examCategory,
       exam_type: input.examType,
+      exam_period: input.examPeriod,
       exam_date: input.examDate,
       exam_start_time: input.startTime,
       company_scale: input.companyScale,

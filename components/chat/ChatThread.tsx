@@ -19,6 +19,7 @@ import {
   SESSION_KEY,
   formatAnswer,
   getSteps,
+  normalizeExamName,
   resetFrom,
   type Answers,
   type Step,
@@ -31,6 +32,7 @@ import {
 } from '@/lib/motion'
 import { track } from '@/lib/analytics'
 import type { ExamType, CompanyScale, WorkType } from '@/lib/saju/constants'
+import type { ExamPeriod } from '@/lib/content/assemble'
 
 import BotBubble from './BotBubble'
 import UserBubble from './UserBubble'
@@ -136,6 +138,19 @@ export default function ChatThread({ onFinish, finishLabel = '결과 보기' }: 
     setFreeInput(false)
     // 어느 단계까지 왔는지만 남깁니다. 답변 내용은 기록하지 않습니다
     track('chat_step_answered', { step: id })
+
+    // 직접 입력한 시험명은 정규화해서 저장하고 원본을 따로 남깁니다 (PRD 10.3).
+    // 관리자 화면에서 집계해 프리셋에 추가하려면 표기가 맞아야 합니다.
+    if (id === 'examName' && typeof value === 'string' && freeInput) {
+      const raw = value
+      setAnswers((prev) => ({
+        ...prev,
+        examName: normalizeExamName(raw),
+        examNameRaw: raw,
+      }))
+      return
+    }
+
     setAnswers((prev) => ({ ...prev, [id]: value }))
   }
 
@@ -304,5 +319,6 @@ function castValue(id: StepId, value: string): unknown {
   if (id === 'examType') return value as ExamType
   if (id === 'companyScale') return value as CompanyScale
   if (id === 'workType') return value as WorkType
+  if (id === 'examPeriod') return value as ExamPeriod
   return value
 }

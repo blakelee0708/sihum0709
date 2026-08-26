@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest'
 import {
   formatAnswer,
   getSteps,
+  inferType,
   isComplete,
+  normalizeExamName,
   resetFrom,
   toUserInput,
   type Answers,
@@ -247,5 +249,106 @@ describe('선택지 배치 (PRD 21.11)', () => {
     })
     const scale = steps.find((s) => s.id === 'companyScale')!
     expect(scale.options).toHaveLength(6)
+  })
+})
+
+describe('대분류 10개와 방식 4분류 (PRD 10.1 ~ 10.4)', () => {
+  it('자격증 · 어학은 하위 그룹을 먼저 묻는다', () => {
+    const steps = getSteps({ category: 'cert-lang' })
+    expect(steps[steps.length - 1].id).toBe('subGroup')
+    expect(steps[steps.length - 1].options?.map((o) => o.label)).toEqual([
+      '자격증',
+      '어학',
+    ])
+  })
+
+  it('하위 그룹을 고르면 그 그룹의 시험명만 나온다', () => {
+    const steps = getSteps({ category: 'cert-lang', subGroup: 'lang' })
+    const examStep = steps.find((s) => s.id === 'examName')!
+    expect(examStep.options?.map((o) => o.value)).toContain('토익')
+    expect(examStep.options?.map((o) => o.value)).not.toContain('정보처리기사')
+  })
+
+  it('하위 그룹이 없는 대분류는 바로 시험명을 묻는다', () => {
+    const steps = getSteps({ category: 'gov' })
+    expect(steps.map((s) => s.id)).not.toContain('subGroup')
+    expect(steps[steps.length - 1].id).toBe('examName')
+  })
+
+  it('대학교 시험만 시험 기간을 묻는다', () => {
+    const school = getSteps({ category: 'school', examName: '대학 중간고사' })
+    expect(school[school.length - 1].id).toBe('examPeriod')
+    expect(school[school.length - 1].options?.map((o) => o.value)).toEqual([
+      '하루',
+      '2~3일',
+      '4~7일',
+      '일주일 이상',
+    ])
+
+    const gov = getSteps({ category: 'gov', examName: '9급 공채' })
+    expect(gov.map((s) => s.id)).not.toContain('examPeriod')
+  })
+
+  it('시험명에서 방식을 추론한다 (PRD 10.2)', () => {
+    expect(inferType('승진 면접', null)).toBe('면접')
+    expect(inferType('보컬 오디션', '오디션')).toBe('오디션')
+    expect(inferType('미술 실기', '오디션')).toBe('실기')
+    expect(inferType('9급 공채', '필기')).toBe('필기')
+    // 어학은 전부 필기입니다
+    expect(inferType('토익 스피킹', '필기')).toBe('필기')
+    // 추론도 못 하고 기본값도 없으면 물어야 합니다
+    expect(inferType('사내 자격시험', null)).toBeNull()
+  })
+
+  it('방식을 추론하지 못하면 4개 버튼으로 묻는다', () => {
+    const steps = getSteps({ category: 'promo', examName: '사내 자격시험' })
+    const typeStep = steps[steps.length - 1]
+    expect(typeStep.id).toBe('examType')
+    expect(typeStep.options?.map((o) => o.value)).toEqual([
+      '필기',
+      '면접',
+      '실기',
+      '오디션',
+    ])
+  })
+
+  it('시험명이 방식을 말해주면 묻지 않는다', () => {
+    const steps = getSteps({ category: 'promo', examName: '승진 면접' })
+    expect(steps.map((s) => s.id)).not.toContain('examType')
+    // 면접이므로 기업 규모로 넘어갑니다
+    expect(steps[steps.length - 1].id).toBe('companyScale')
+  })
+
+  it('시험명을 정규화한다 (PRD 10.3)', () => {
+    expect(normalizeExamName('  국가직   9급  ')).toBe('국가직 9급')
+    expect(normalizeExamName('토익(TOEIC)')).toBe('토익TOEIC')
+    expect(normalizeExamName('컴활（1급）')).toBe('컴활1급')
+  })
+
+  it('오디션도 결과 입력으로 넘어간다', () => {
+    const input = toUserInput({
+      category: 'audition',
+      examName: '보컬 오디션',
+      examDate: '2027-03-15',
+      startTime: null,
+      birthDate: '1995-06-15',
+      birthTime: null,
+      name: null,
+    })
+    expect(input.examType).toBe('오디션')
+  })
+
+  it('대학교 시험 기간이 입력으로 넘어간다', () => {
+    const input = toUserInput({
+      category: 'school',
+      examName: '대학 기말고사',
+      examPeriod: '2~3일',
+      examDate: '2027-06-15',
+      startTime: null,
+      birthDate: '1995-06-15',
+      birthTime: null,
+      name: null,
+    })
+    expect(input.examPeriod).toBe('2~3일')
   })
 })

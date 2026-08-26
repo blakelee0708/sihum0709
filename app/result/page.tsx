@@ -22,6 +22,7 @@ interface QueryRow {
   exam_name: string
   exam_category: string | null
   exam_type: string
+  exam_period: string | null
   exam_date: string
   exam_start_time: string | null
   birth_date: string
@@ -48,7 +49,7 @@ export default async function ResultPage({
   const { data } = await supabase
     .from('queries')
     .select(
-      'id, exam_name, exam_category, exam_type, exam_date, exam_start_time, birth_date, birth_time, has_birth_time, name, company_scale, work_type, job_title'
+      'id, exam_name, exam_category, exam_type, exam_period, exam_date, exam_start_time, birth_date, birth_time, has_birth_time, name, company_scale, work_type, job_title'
     )
     .eq('id', q)
     .maybeSingle<QueryRow>()

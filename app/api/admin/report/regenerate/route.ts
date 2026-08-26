@@ -20,7 +20,7 @@ import { adminDb, requireAdmin, UnauthorizedError } from '@/lib/admin/auth'
 import { GenerateError } from '@/lib/ai/generate'
 import { runPipeline } from '@/lib/ai/pipeline'
 import { logSearches } from '@/lib/ai/search-log'
-import type { UserInput } from '@/lib/content/assemble'
+import type { ExamPeriod, UserInput } from '@/lib/content/assemble'
 import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
 
 export async function POST(req: NextRequest) {
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   const { data: query } = await db
     .from('queries')
     .select(
-      'exam_name, exam_category, exam_type, exam_date, exam_start_time, birth_date, birth_time, has_birth_time, name, company_scale, work_type, job_title, company_name'
+      'exam_name, exam_category, exam_type, exam_period, exam_date, exam_start_time, birth_date, birth_time, has_birth_time, name, company_scale, work_type, job_title, company_name'
     )
     .eq('id', report.query_id)
     .maybeSingle()
@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
     examName: query.exam_name,
     examCategory: query.exam_category,
     examType: query.exam_type as ExamType,
+    examPeriod: query.exam_period as ExamPeriod | null,
     examDate: query.exam_date,
     startTime: query.exam_start_time,
     birthDate: query.birth_date,

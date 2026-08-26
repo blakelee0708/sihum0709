@@ -1,7 +1,7 @@
 /**
- * 대화 질문 문구 (PRD 21.10)
+ * 대화 질문 문구 (PRD 21.11)
  *
- * 공통 10 + 면접 6 + 유료 3 + 생성 중 18 = 37개
+ * 공통 12 + 면접 6 + 유료 3 + 생성 중 18 = 39개
  *
  * 말풍선 안에 들어가므로 두 줄을 넘기지 않습니다.
  * 배열의 각 원소가 한 줄입니다.
@@ -9,13 +9,19 @@
 
 export type ChatScript = string[]
 
-/** 공통 10개 */
+/** 공통 12개 */
 export const COMMON_SCRIPTS = {
   /** 대분류 */
   category: ['안녕하세요, 합격이예요.', '어떤 시험 준비하세요?'],
 
+  /** 하위 그룹 (자격증 · 어학) */
+  subGroup: ['자격증이신가요, 어학이신가요?'],
+
   /** 시험명 (대분류 선택 후). {category} 치환 */
   examName: ['{category}시군요!', '어떤 시험이에요?'],
+
+  /** 시험 기간 (대학교 시험) */
+  examPeriod: ['시험이 며칠 동안 이어져요?'],
 
   /** 시험명 직접 입력 */
   examNameFree: ['시험 이름을 알려주세요.'],
@@ -112,7 +118,7 @@ export const GENERATING_STEPS: Record<'필기' | '면접', readonly GeneratingSt
     { at: 28, text: '{examDate} 기운을 보고 있어요' },
     { at: 38, text: '시험 전 7일 흐름을 정리하는 중이에요' },
     { at: 48, text: '{exam} 정보를 확인하는 중이에요' },
-    { at: 58, text: '과목별 배분을 계산하는 중이에요' },
+    { at: 58, text: '남은 기간 배분을 계산하는 중이에요' },
     { at: 68, text: '거의 다 됐어요' },
     { at: 78, text: '마무리하는 중이에요' },
   ],
@@ -169,7 +175,7 @@ export function fillGenerating(text: string, vars: GeneratingVars): string {
  */
 export const GENERATING_TIMEOUT_MS = 240_000
 
-/** 문구 총 개수 확인용 (PRD 21.10 기준 37개) */
+/** 문구 총 개수 확인용 (PRD 21.11 기준 39개) */
 export const SCRIPT_COUNT =
   Object.keys(COMMON_SCRIPTS).length +
   Object.keys(INTERVIEW_SCRIPTS).length +

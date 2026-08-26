@@ -177,13 +177,13 @@ describe('프리셋 시험 (PRD 10.1, 10.3)', () => {
   })
 })
 
-describe('대화 문구 (PRD 21.10)', () => {
-  it('총 37개', () => {
-    expect(SCRIPT_COUNT).toBe(37)
+describe('대화 문구 (PRD 21.11)', () => {
+  it('총 39개', () => {
+    expect(SCRIPT_COUNT).toBe(39)
   })
 
-  it('공통 10 / 면접 6 / 유료 3 / 생성 중 18', () => {
-    expect(Object.keys(COMMON_SCRIPTS)).toHaveLength(10)
+  it('공통 12 / 면접 6 / 유료 3 / 생성 중 18', () => {
+    expect(Object.keys(COMMON_SCRIPTS)).toHaveLength(12)
     expect(Object.keys(INTERVIEW_SCRIPTS)).toHaveLength(6)
     expect(Object.keys(PAID_SCRIPTS)).toHaveLength(3)
     expect(GENERATING_STEPS.필기.length + GENERATING_STEPS.면접.length).toBe(18)
