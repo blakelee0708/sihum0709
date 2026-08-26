@@ -15,11 +15,13 @@ import GeneratingState from '@/components/report/GeneratingState'
 import KakaoShareButton from '@/components/report/KakaoShareButton'
 import MonthCalendar from '@/components/report/MonthCalendar'
 import ReportSection, { ReportBody } from '@/components/report/ReportSection'
+import ReportCover from '@/components/report/ReportCover'
 import SajuTable from '@/components/report/SajuTable'
 import { buildFreeResult, formatExamDate, type UserInput } from '@/lib/content/assemble'
 import { getMonthFlow } from '@/lib/saju/fortune'
 import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
-import type { SectionSpec } from '@/lib/ai/spec'
+import { getReportSpec, type SectionSpec } from '@/lib/ai/spec'
+import type { ReportDdayRange } from '@/lib/saju/fortune'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: '내 리포트 · 시험사주' }
@@ -148,6 +150,11 @@ export default async function ReportPage({
 
   const monthFlow = getMonthFlow(free.saju, examYear)
 
+  // 제목은 구간마다 다릅니다 (PRD 8.8). 저장된 구간으로 다시 만듭니다.
+  const spec = getReportSpec(reportType, report.dday_range as ReportDdayRange, examYear, {
+    hasStartTime: Boolean(query.exam_start_time),
+  })
+
   const content = report.content
   const provider = user.app_metadata?.provider
 
@@ -158,16 +165,25 @@ export default async function ReportPage({
   return (
     <main className="mx-auto max-w-md pb-6">
       <header className="px-screen pt-6">
-        <h1 className="text-headline">
-          {reportType === '면접' ? '면접 상세 리포트' : '시험 전 상세 플랜'}
-        </h1>
+        <h1 className="text-headline">{spec.title}</h1>
         <p className="mt-2 text-body">
           {query.name ? `${query.name}님 · ` : ''}
           {query.company_name ?? query.exam_name}
+          {query.job_title ? ` · ${query.job_title}` : ''}
         </p>
         <p className="text-label" style={{ color: 'var(--text-sub)' }}>
-          {y}년 {m}월 {d}일
+          {y}년 {m}월 {d}일 · {free.dday >= 0 ? `D-${free.dday}` : `D+${Math.abs(free.dday)}`}
         </p>
+
+        {/* 표지 — 지수 3개와 유형 뱃지 (PRD 8.3, 8.4) */}
+        <ReportCover
+          examType={reportType}
+          examDayScore={free.examDayScore}
+          todayScore={free.todayScore}
+          potentialScore={free.potentialScore}
+          badge={free.badge}
+          compatibility={content.compatibility}
+        />
 
         {content.mock && (
           <p

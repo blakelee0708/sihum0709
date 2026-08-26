@@ -224,6 +224,8 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
         speechBubble={result.speechBubble}
         examDayScore={result.examDayScore}
         todayScore={result.todayScore}
+        potentialScore={result.potentialScore}
+        potentialLocked
         onBadgeClick={() => setModalOpen(true)}
       />
 

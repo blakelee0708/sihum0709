@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 상단 요약 — 캐릭터, 말풍선, 뱃지, 점수 2개 (PRD 7.6, 3.2)
+ * 상단 요약 — 캐릭터, 말풍선, 뱃지, 점수 3개 (PRD 7.6, 3.2, 8.7)
  *
  * 캐릭터는 왼쪽, 뱃지는 오른쪽에 배치합니다.
  * 말풍선은 캐릭터 상단에 CSS로 겹칩니다. 문구가 D-day에 따라 바뀌므로
@@ -24,6 +24,10 @@ interface Props {
   speechBubble: string
   examDayScore: number
   todayScore: number
+  /** PRD 8.7 잠재력 발휘 지수 */
+  potentialScore: number
+  /** 무료 결과에서는 숫자를 가립니다 (PRD 3.2) */
+  potentialLocked?: boolean
   onBadgeClick: () => void
 }
 
@@ -42,6 +46,8 @@ export default function CharacterDisplay({
   speechBubble,
   examDayScore,
   todayScore,
+  potentialScore,
+  potentialLocked = false,
   onBadgeClick,
 }: Props) {
   return (
@@ -94,7 +100,13 @@ export default function CharacterDisplay({
           </p>
         </div>
 
-        <ScorePair examDayScore={examDayScore} todayScore={todayScore} examType={examType} />
+        <ScorePair
+          examDayScore={examDayScore}
+          todayScore={todayScore}
+          examType={examType}
+          potentialScore={potentialScore}
+          potentialLocked={potentialLocked}
+        />
       </div>
     </section>
   )
