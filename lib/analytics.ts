@@ -29,6 +29,8 @@ export type EventName =
   | 'save_clicked'
   /** 4. CTA 클릭률 — 결제 화면 진입 */
   | 'paid_cta_click'
+  /** 카드 안 부분 잠금에서 진입 (PRD 3.4). 어느 카드가 결제를 만드는지 봅니다 */
+  | 'card_lock_click'
   /** 결제 화면 도달 */
   | 'checkout_viewed'
   /** 5. 결제 전환율 */
@@ -41,8 +43,10 @@ export type EventName =
 export interface EventProps {
   /** 대화 단계 id */
   step?: string
-  /** 필기 / 면접 / 실기 — 8. 방식별 분포 */
+  /** 필기 / 면접 / 실기 / 오디션 — 방식별 분포 (PRD 19) */
   examType?: string
+  /** 부분 잠금을 누른 카드 번호 (PRD 3.4) */
+  cardId?: number
   /** 강한 오행 — 유형별 분포 (PRD 22.12) */
   strongElement?: string
   /** D-day 구간 — D-day 구간별 결제율 (PRD 22.12) */

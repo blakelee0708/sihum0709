@@ -1,8 +1,11 @@
 /**
- * 무료 결과 카드 조립 (README 조립 규칙, PRD 3.2 ~ 3.8)
+ * 무료 결과 카드 조립 (PRD 3.2 ~ 3.10)
  *
  * 문장 조각을 고르고 변수를 치환해 카드 8개를 만듭니다.
  * AI 호출도 검색도 없고, 같은 입력에는 항상 같은 결과가 나옵니다 (PRD 3.1).
+ *
+ * 카드 1~4가 시험 정보를 계산에 쓴 항목입니다. 일반 사주 서비스가 만들 수 없는
+ * 내용을 앞에 둡니다 (PRD 3.3). 그중 2·3·4와 7에 부분 잠금을 겁니다 (PRD 3.4).
  */
 
 import {
@@ -30,6 +33,7 @@ import {
   getPotentialScore,
   getScoreRange,
   getStartTimeRelation,
+  getWeekFlowPattern,
   getTodayScore,
   getVerdictRange,
   getWeekFlow,
@@ -79,14 +83,23 @@ export interface UserInput {
 
 // ─── 출력 ───
 
-export type CardKind = 'text' | 'weekFlow' | 'methodFit'
+export type CardKind = 'text' | 'saju' | 'weekFlow' | 'methodFit'
+
+/** 카드 안 하단에 걸리는 부분 잠금 (PRD 3.4) */
+export interface CardLock {
+  /** 예: '십신으로 본 시험 패턴' */
+  title: string
+  /** 제목만 있으면 무엇인지 모르므로 한두 줄 설명을 함께 둡니다 */
+  teaser: string
+}
 
 export interface ResultCard {
   id: number
   title: string
   kind: CardKind
-  /** kind가 'text'일 때의 문단들 */
+  /** 문단들. 차트 카드는 비어 있을 수 있습니다 */
   paragraphs: string[]
+  lock?: CardLock
 }
 
 /** PRD 10.4 대학교 시험 기간 */
@@ -136,24 +149,45 @@ export interface DayFlowLabeled extends DayFlow {
 
 // ─── 방식별 표현 ───
 
-/** 면접이면 '면접', 나머지는 '시험' (PRD 3.3, 21.7) */
+/**
+ * 방식을 가리키는 말 (PRD 3.5).
+ * 오디션만 따로 부르고, 필기·실기는 '시험'으로 묶습니다.
+ */
 export function methodWord(type: ExamType): string {
-  return type === '면접' ? '면접' : '시험'
+  if (type === '면접') return '면접'
+  if (type === '오디션') return '오디션'
+  return '시험'
 }
 
-/** PRD 3.2, 3.3 카드 제목 */
-function cardTitles(type: ExamType): Record<number, string> {
+/** 카드 6의 장소 (PRD 3.5) */
+function venueWord(type: ExamType): string {
+  if (type === '면접') return '면접장'
+  if (type === '오디션') return '심사장'
+  return '시험장'
+}
+
+/** PRD 3.5 카드 제목 */
+function cardTitles(type: ExamType, startTimeLabel: string): Record<number, string> {
   const w = methodWord(type)
   return {
-    1: '{name}님의 시험 날짜 운세는?',
-    2: `${w}장에서 주의할 점`,
-    3: '{name}님의 행운의 숫자는?',
-    4: `${w}일에 뭘 입고 갈까?`,
-    5: `${w} 전날 밤에는`,
-    6: `${w} 전 7일 기운 흐름`,
-    7: '{name}님에게 맞는 시험 유형',
-    8: '시작 시간 궁합',
+    // 카드 1의 날짜 표현은 방식과 무관하게 같습니다 (PRD 3.5)
+    1: '{examDate}, {name}님에게 어떤 날인가',
+    2: '{name}님의 사주',
+    3: `${w} 전 7일 기운 흐름`,
+    4: `${startTimeLabel}은 맞는 시간일까`,
+    5: '{name}님은 어떤 시험에 강한가',
+    6: `${venueWord(type)}에서 주의할 점`,
+    7: '행운의 숫자와 피해야 할 색',
+    8: `${w} 전날 밤에는`,
   }
+}
+
+/** PRD 3.4 부분 잠금 4곳 */
+const CARD_LOCKS: Record<number, { title: string; teaserKey: string }> = {
+  2: { title: '십신으로 본 시험 패턴', teaserKey: 'saju' },
+  3: { title: '날짜별 상세 플랜', teaserKey: 'weekFlow' },
+  4: { title: '하루 전체 시간대별 운용', teaserKey: 'startTime' },
+  7: { title: '좋은 색, 방위, 시간대', teaserKey: 'luckyColor' },
 }
 
 /** 이름이 없을 때 제목의 호명을 자연스럽게 지웁니다 */
@@ -162,8 +196,11 @@ function renderTitle(template: string, name?: string | null): string {
   return template
     .replace(/\{name\}님의\s*/g, '')
     .replace(/\{name\}님에게\s*/g, '')
+    .replace(/\{name\}님은\s*/g, '')
+    .replace(/,\s*\{name\}님\s*/g, ', ')
     .replace(/\{name\}님\s*/g, '')
     .replace(/\s+/g, ' ')
+    .replace(/^,\s*/, '')
     .trim()
 }
 
@@ -222,14 +259,29 @@ export function buildFreeResult(
   }
 
   const r = (s: string) => render(s, vars)
-  const titles = cardTitles(input.examType)
-  const t = (id: number) => renderTitle(titles[id], input.name)
+  const titles = cardTitles(
+    input.examType,
+    input.startTime ? formatStartTime(input.startTime) : '시작 시각'
+  )
+  const t = (id: number) =>
+    renderTitle(titles[id], input.name).replace('{examDate}', examDateLabel)
 
-  const variant = saju.dayPillarIndex % 7 // PRD 3.7
+  /** 부분 잠금은 차별화 카드에만 겁니다 (PRD 3.4) */
+  const lock = (id: number): CardLock => ({
+    title: CARD_LOCKS[id].title,
+    teaser: r(F.lockTeaser[CARD_LOCKS[id].teaserKey]),
+  })
+
+  const variant = saju.dayPillarIndex % 7 // PRD 3.9
+
+  const weekFlow: DayFlowLabeled[] = getWeekFlow(saju, weak, examDate).map(
+    (d) => ({ ...d, label: F.flowLabel[getScoreRange(d.score)] })
+  )
+  const methodFit = getMethodFit(strong)
 
   const cards: ResultCard[] = []
 
-  // 카드 1 — 일간 + 강오행 + 약오행 + 일진 관계 + 종합 판정
+  // 카드 1 — 일간 + 강오행 + 약오행 + 일진 관계 + 종합 판정. 전체 공개
   cards.push({
     id: 1,
     title: t(1),
@@ -243,13 +295,45 @@ export function buildFreeResult(
     ].map(r),
   })
 
-  // 카드 2 — 방식별. 면접은 조각이 4개입니다 (README)
+  // 카드 2 — 명식 표와 오행 분포를 그리고 오행 요약을 붙입니다. 부분 잠금
+  cards.push({
+    id: 2,
+    title: t(2),
+    kind: 'saju',
+    paragraphs: [F.elementSummary[strong]].map(r),
+    lock: lock(2),
+  })
+
+  // 카드 3 — 7일 기운 흐름 차트 + 패턴 요약. 부분 잠금
+  cards.push({
+    id: 3,
+    title: t(3),
+    kind: 'weekFlow',
+    paragraphs: [F.weekFlowSummary[getWeekFlowPattern(weekFlow.map((d) => d.score))]].map(r),
+    lock: lock(3),
+  })
+
+  // 카드 4 — 시작 시간 궁합. 시간을 모르면 표시하지 않습니다 (PRD 6.5). 부분 잠금
+  if (startTime) {
+    cards.push({
+      id: 4,
+      title: t(4),
+      kind: 'text',
+      paragraphs: [F.startTimeByRelation[input.examType][startTime.relation]].map(r),
+      lock: lock(4),
+    })
+  }
+
+  // 카드 5 — 방식 궁합 (막대 그래프, 문장 없음). 전체 공개
+  cards.push({ id: 5, title: t(5), kind: 'methodFit', paragraphs: [] })
+
+  // 카드 6 — 방식별. 면접은 조각이 4개입니다 (PRD 3.6). 전체 공개
   if (input.examType === '면접') {
     const scale = input.companyScale
     const work = input.workType
     cards.push({
-      id: 2,
-      title: t(2),
+      id: 6,
+      title: t(6),
       kind: 'text',
       paragraphs: [
         F.methodIntro['면접'][variant],
@@ -257,13 +341,13 @@ export function buildFreeResult(
         work ? F.workTypeByStrong[work][strong] : null,
         F.methodByWeak['면접'][weak],
       ]
-        .filter((s): s is string => Boolean(s))
+        .filter((x): x is string => Boolean(x))
         .map(r),
     })
   } else {
     cards.push({
-      id: 2,
-      title: t(2),
+      id: 6,
+      title: t(6),
       kind: 'text',
       paragraphs: [
         F.methodIntro[input.examType][variant],
@@ -273,32 +357,27 @@ export function buildFreeResult(
     })
   }
 
-  // 카드 3 — 행운의 숫자
+  // 카드 7 — 행운 숫자 1개 + 방식별 활용 + 피해야 할 색. 부분 잠금
+  //
+  // 무료가 "하지 말 것", 유료가 "할 것"입니다 (PRD 3.4).
+  // 피해야 할 색은 강한 것을 더 키우는 색을 피하는 논리이므로
+  // 약한 오행이 아니라 강한 오행을 봅니다.
   cards.push({
-    id: 3,
-    title: t(3),
+    id: 7,
+    title: t(7),
     kind: 'text',
     paragraphs: [
       F.luckyNumberByWeak[weak],
       F.numberUseByMethod[input.examType],
+      F.avoidColorByStrong[strong],
     ].map(r),
   })
+  cards[cards.length - 1].lock = lock(7)
 
-  // 카드 4 — 복장
+  // 카드 8 — 전날 밤. 전체 공개
   cards.push({
-    id: 4,
-    title: t(4),
-    kind: 'text',
-    paragraphs: [
-      F.luckyColorByWeak[weak],
-      F.outfitByMethod[input.examType],
-    ].map(r),
-  })
-
-  // 카드 5 — 전날 밤
-  cards.push({
-    id: 5,
-    title: t(5),
+    id: 8,
+    title: t(8),
     kind: 'text',
     paragraphs: [
       F.eveByStrong[strong],
@@ -306,26 +385,6 @@ export function buildFreeResult(
       F.eveByMethod[input.examType],
     ].map(r),
   })
-
-  // 카드 6 — 7일 기운 흐름 (그래프)
-  const weekFlow: DayFlowLabeled[] = getWeekFlow(saju, weak, examDate).map(
-    (d) => ({ ...d, label: F.flowLabel[getScoreRange(d.score)] })
-  )
-  cards.push({ id: 6, title: t(6), kind: 'weekFlow', paragraphs: [] })
-
-  // 카드 7 — 방식 궁합 (막대 그래프, 문장 없음)
-  const methodFit = getMethodFit(strong)
-  cards.push({ id: 7, title: t(7), kind: 'methodFit', paragraphs: [] })
-
-  // 카드 8 — 시작 시간 궁합. 시간을 모르면 표시하지 않습니다 (PRD 6.5)
-  if (startTime) {
-    cards.push({
-      id: 8,
-      title: t(8),
-      kind: 'text',
-      paragraphs: [F.startTimeByRelation[input.examType][startTime.relation]].map(r),
-    })
-  }
 
   return {
     input,

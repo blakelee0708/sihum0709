@@ -291,7 +291,7 @@ describe('무료 결과 조립', () => {
     expect(r.startTime).toBeNull()
   })
 
-  it('면접 카드 2는 조각 4개', () => {
+  it('면접 카드 6은 조각 4개 (PRD 3.6)', () => {
     const r = buildFreeResult(
       {
         ...BASE,
@@ -303,8 +303,8 @@ describe('무료 결과 조립', () => {
       },
       TODAY
     )
-    const card2 = r.cards.find((c) => c.id === 2)!
-    expect(card2.paragraphs).toHaveLength(4)
+    const card6 = r.cards.find((c) => c.id === 6)!
+    expect(card6.paragraphs).toHaveLength(4)
   })
 
   it('미치환 변수가 남지 않는다', () => {
@@ -374,15 +374,66 @@ describe('무료 결과 조립', () => {
     expect(r.saju.hour).toBeNull()
   })
 
-  it('카드 제목이 방식에 따라 바뀐다 (PRD 3.3)', () => {
+  it('카드 제목이 방식에 따라 바뀐다 (PRD 3.5)', () => {
     const written = buildFreeResult(BASE, TODAY)
     const interview = buildFreeResult({ ...BASE, examType: '면접' }, TODAY)
+    const audition = buildFreeResult({ ...BASE, examType: '오디션' }, TODAY)
 
-    expect(written.cards.find((c) => c.id === 2)!.title).toBe('시험장에서 주의할 점')
-    expect(interview.cards.find((c) => c.id === 2)!.title).toBe('면접장에서 주의할 점')
-    expect(written.cards.find((c) => c.id === 4)!.title).toBe('시험일에 뭘 입고 갈까?')
-    expect(interview.cards.find((c) => c.id === 4)!.title).toBe('면접일에 뭘 입고 갈까?')
-    expect(written.cards.find((c) => c.id === 6)!.title).toBe('시험 전 7일 기운 흐름')
-    expect(interview.cards.find((c) => c.id === 6)!.title).toBe('면접 전 7일 기운 흐름')
+    const title = (r: ReturnType<typeof buildFreeResult>, id: number) =>
+      r.cards.find((c) => c.id === id)!.title
+
+    expect(title(written, 3)).toBe('시험 전 7일 기운 흐름')
+    expect(title(interview, 3)).toBe('면접 전 7일 기운 흐름')
+    expect(title(audition, 3)).toBe('오디션 전 7일 기운 흐름')
+
+    expect(title(written, 6)).toBe('시험장에서 주의할 점')
+    expect(title(interview, 6)).toBe('면접장에서 주의할 점')
+    expect(title(audition, 6)).toBe('심사장에서 주의할 점')
+
+    expect(title(written, 8)).toBe('시험 전날 밤에는')
+    expect(title(audition, 8)).toBe('오디션 전날 밤에는')
+
+    // 카드 1의 날짜 표현은 방식과 무관하게 같습니다
+    expect(title(written, 1)).toBe(title(interview, 1))
+  })
+
+  it('카드 순서가 차별화 우선이다 (PRD 3.2, 3.3)', () => {
+    const r = buildFreeResult(BASE, TODAY)
+    expect(r.cards.map((c) => c.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+    expect(r.cards.map((c) => c.kind)).toEqual([
+      'text', 'saju', 'weekFlow', 'text', 'methodFit', 'text', 'text', 'text',
+    ])
+  })
+
+  it('부분 잠금이 카드 2, 3, 4, 7에만 걸린다 (PRD 3.4)', () => {
+    const r = buildFreeResult(BASE, TODAY)
+    const locked = r.cards.filter((c) => c.lock).map((c) => c.id)
+    expect(locked).toEqual([2, 3, 4, 7])
+
+    // 제목만 있으면 무엇인지 모르므로 설명이 함께 있어야 합니다
+    for (const c of r.cards.filter((x) => x.lock)) {
+      expect(c.lock!.title, String(c.id)).toBeTruthy()
+      expect(c.lock!.teaser.length, String(c.id)).toBeGreaterThan(20)
+      expect(c.lock!.teaser).not.toMatch(/[{}]/)
+    }
+  })
+
+  it('시작 시각을 모르면 카드 4가 빠지고 잠금도 셋이 된다 (PRD 6.5)', () => {
+    const r = buildFreeResult({ ...BASE, startTime: null }, TODAY)
+    expect(r.cards.map((c) => c.id)).not.toContain(4)
+    expect(r.cards.filter((c) => c.lock).map((c) => c.id)).toEqual([2, 3, 7])
+  })
+
+  it('카드 7은 피해야 할 색을 강한 오행으로 고른다 (PRD 3.4)', () => {
+    const r = buildFreeResult(BASE, TODAY)
+    const card7 = r.cards.find((c) => c.id === 7)!
+    expect(card7.paragraphs).toHaveLength(3)
+    expect(card7.paragraphs[2]).toBe(F.avoidColorByStrong[r.profile.strong])
+  })
+
+  it('카드 2는 강한 오행의 요약을 쓴다 (PRD 3.6)', () => {
+    const r = buildFreeResult(BASE, TODAY)
+    const card2 = r.cards.find((c) => c.id === 2)!
+    expect(card2.paragraphs[0]).toBe(F.elementSummary[r.profile.strong])
   })
 })

@@ -12,10 +12,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Clock, Share2, UserPlus } from 'lucide-react'
 
+import CardLockTeaser from '@/components/result/CardLockTeaser'
 import CharacterDisplay from '@/components/result/CharacterDisplay'
 import LockedCTA from '@/components/result/LockedCTA'
+import ElementBar from '@/components/report/ElementBar'
 import MethodFitChart from '@/components/result/MethodFitChart'
+import QuoteBlock from '@/components/result/QuoteBlock'
 import ResultCard from '@/components/result/ResultCard'
+import SajuTable from '@/components/report/SajuTable'
 import ShareCard, { type ShareCardData } from '@/components/result/ShareCard'
 import TypeModal from '@/components/result/TypeModal'
 import TypeShareCard from '@/components/result/TypeShareCard'
@@ -231,26 +235,58 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
 
       <div className="mt-section space-y-card-gap px-screen">
         {result.cards.map((card) => {
+          const lock = card.lock ? (
+            <CardLockTeaser
+              lock={card.lock}
+              href={paidHref}
+              cardId={card.id}
+              examType={result.input.examType}
+            />
+          ) : null
+
+          // 카드 2 — 명식 표와 오행 분포. 리포트 섹션 1의 컴포넌트를 재사용합니다
+          if (card.kind === 'saju') {
+            return (
+              <ResultCard key={card.id} title={card.title} paragraphs={card.paragraphs}>
+                <SajuTable saju={result.saju} />
+                <div className="mt-4">
+                  <ElementBar
+                    scores={result.profile.scores}
+                    strong={result.profile.strong}
+                    weak={result.profile.weak}
+                  />
+                </div>
+                {lock}
+              </ResultCard>
+            )
+          }
+
           if (card.kind === 'weekFlow') {
             return (
-              <ResultCard key={card.id} title={card.title}>
+              <ResultCard key={card.id} title={card.title} paragraphs={card.paragraphs}>
                 <WeekFlowChart data={result.weekFlow} />
+                {lock}
               </ResultCard>
             )
           }
+
           if (card.kind === 'methodFit') {
             return (
-              <ResultCard key={card.id} title={card.title}>
+              <ResultCard key={card.id} title={card.title} paragraphs={card.paragraphs}>
                 <MethodFitChart fit={result.methodFit} examType={result.input.examType} />
+                {lock}
               </ResultCard>
             )
           }
+
           return (
-            <ResultCard key={card.id} title={card.title} paragraphs={card.paragraphs} />
+            <ResultCard key={card.id} title={card.title} paragraphs={card.paragraphs}>
+              {lock}
+            </ResultCard>
           )
         })}
 
-        {/* 시작 시간을 모르면 카드 8 대신 안내를 둡니다 (PRD 6.5) */}
+        {/* 시작 시간을 모르면 카드 4 대신 안내를 둡니다 (PRD 6.5, 14.7) */}
         {!result.startTime && (
           <div
             className="flex items-start gap-2 p-card"
@@ -297,6 +333,9 @@ export default function ResultView({ serverInput = null, queryId = null }: Props
           </div>
         )}
       </div>
+
+      {/* 응원 문구 (PRD 3.2) */}
+      <QuoteBlock seed={result.saju.dayPillarIndex} />
 
       {/* 공유 / 저장 */}
       <section className="mt-section space-y-2 px-screen">

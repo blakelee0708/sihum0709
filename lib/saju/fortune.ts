@@ -428,4 +428,47 @@ export function getPotentialScore(input: PotentialInput): number {
   return clampPotential(score)
 }
 
+// ─── PRD 3.6 카드 3 — 7일 흐름 요약 ───
+
+export type WeekFlowPattern =
+  | 'high-early'
+  | 'high-late'
+  | 'high-middle'
+  | 'flat'
+  | 'volatile'
+  | 'low-overall'
+
+/**
+ * 7일 흐름을 여섯 패턴 중 하나로 분류합니다 (fragments.json weekFlowSummary).
+ *
+ * PRD 3.6은 조각이 6개라는 것만 정하고 분류 규칙은 두지 않았습니다.
+ * 아래 기준을 새로 정했습니다. 판정 순서가 결과를 가르므로 순서도 규칙입니다.
+ *
+ *   1. 평균이 낮으면 전반이 낮은 것으로 봅니다. 어디가 높은지는 의미가 없습니다
+ *   2. 진폭이 크면 오르내림으로 봅니다. 최고점 위치보다 변동이 눈에 띕니다
+ *   3. 진폭이 작으면 고른 것으로 봅니다
+ *   4. 나머지는 최고점이 앞·중간·뒤 어디에 있는지로 가릅니다
+ *
+ * 같은 입력에는 항상 같은 결과가 나옵니다 (PRD 3.1).
+ */
+export function getWeekFlowPattern(scores: number[]): WeekFlowPattern {
+  if (scores.length === 0) return 'flat'
+
+  const max = Math.max(...scores)
+  const min = Math.min(...scores)
+  const avg = scores.reduce((a, n) => a + n, 0) / scores.length
+  const spread = max - min
+
+  if (avg < 45) return 'low-overall'
+  if (spread >= 30) return 'volatile'
+  if (spread <= 10) return 'flat'
+
+  const peak = scores.indexOf(max)
+  const third = scores.length / 3
+
+  if (peak < third) return 'high-early'
+  if (peak >= third * 2) return 'high-late'
+  return 'high-middle'
+}
+
 export { METHOD_KEYS }
