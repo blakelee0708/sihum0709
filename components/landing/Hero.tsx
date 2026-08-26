@@ -25,7 +25,8 @@ import { motion, useReducedMotion } from 'framer-motion'
 
 import HeroCharacter from './HeroCharacter'
 import { MotionLink, useTap } from '@/components/motion/Pressable'
-import { heroCharacterItem, heroContainer, heroItem } from '@/lib/motion'
+import ShineOverlay from '@/components/motion/ShineOverlay'
+import { BREATHE, heroCharacterItem, heroContainer, heroItem } from '@/lib/motion'
 import { track } from '@/lib/analytics'
 
 export default function Hero() {
@@ -65,6 +66,10 @@ export default function Hero() {
           href="/start"
           onClick={() => track('landing_cta_click')}
           whileTap={tap}
+          // 숨쉬기는 버튼 자신이, 진입은 감싼 div가 맡습니다. 한 요소에
+          // 둘을 걸면 같은 scale을 두고 다툽니다
+          animate={shouldReduceMotion ? undefined : BREATHE.animate}
+          transition={shouldReduceMotion ? undefined : BREATHE.transition}
           className="relative flex min-h-[52px] w-full items-center justify-center overflow-hidden text-body font-semibold text-white"
           style={{
             background: 'var(--button)',
@@ -73,6 +78,7 @@ export default function Hero() {
           }}
         >
           합격이에게 내 시험운 물어보기
+          <ShineOverlay />
         </MotionLink>
       </motion.div>
 

@@ -5,6 +5,8 @@
  * 값을 임의로 바꾸지 마십시오.
  */
 
+import type { TargetAndTransition, Transition } from 'framer-motion'
+
 export const EASE = [0.22, 1, 0.36, 1] as const
 
 /**
@@ -33,12 +35,25 @@ export const answerMotion = {
   transition: { duration: 0.26, ease: EASE },
 }
 
-/** 선택지 순차 등장 */
-export function optionMotion(index: number) {
-  return {
+/**
+ * 선택지 순차 등장.
+ *
+ * selected를 넘기면 등장 대신 선택 강조를 재생합니다 (FIX_3 [7]-2).
+ * 두 애니메이션이 같은 요소의 animate를 두고 다투므로 한쪽만 씁니다.
+ * 어차피 선택하는 시점에는 등장이 이미 끝나 있습니다.
+ */
+export function optionMotion(index: number, selected = false) {
+  const base = {
     initial: { opacity: 0, y: 6 },
     animate: { opacity: 1, y: 0 },
     transition: { duration: 0.2, delay: index * 0.045, ease: EASE },
+  }
+  if (!selected) return base
+
+  return {
+    ...base,
+    animate: { ...base.animate, scale: selectPop.scale },
+    transition: selectPop.transition,
   }
 }
 
@@ -165,15 +180,94 @@ export const listItem = {
 export const REVEAL_MARGIN = '-60px'
 
 /**
- * 눌림 반응 (PRD 21.12)
+ * 눌림 반응 (PRD 21.12, FIX_3 [7]-1)
  *
  * 모바일에는 hover가 없습니다. 손가락이 화면을 덮고 있어서 눌렸다는 것을
  * 알려줄 시각 신호가 이것뿐입니다. 반응이 없으면 안 눌렸다고 생각하고
  * 한 번 더 누릅니다.
  *
- * 0.97은 눈에 보이되 레이아웃이 흔들리지 않는 선입니다.
+ * 0.97에서 0.94로 내렸습니다. 0.97은 손가락에 가려 눌렸는지 알기
+ * 어려웠습니다. 0.94는 손가락 바깥으로 테두리가 움직이는 것이 보입니다.
+ *
+ * 크기만으로는 부족해서 세 가지를 겹칩니다.
+ *   크기  scale 0.94
+ *   색    배경이 살짝 진해짐 (밝은 버튼만)
+ *   속도  stiffness 500으로 즉각 반응
  */
-export const TAP_SCALE = 0.97
+export const TAP_SCALE = 0.94
+
+/** 누르는 순간 바로 따라와야 합니다. 늦으면 눌린 것으로 안 읽힙니다 */
+export const TAP_SPRING = {
+  type: 'spring',
+  stiffness: 500,
+  damping: 25,
+} as const
+
+/**
+ * 밝은 배경 버튼의 눌림 색.
+ *
+ * 어두운 버튼(--button #0F1729, 흰 글자)에는 쓰지 않습니다. 배경이
+ * 밝아지면 흰 글자가 순간 안 보입니다.
+ */
+export const TAP_SURFACE_BG = '#DCE9FA'
+
+/**
+ * 선택 직후 강조 (FIX_3 [7]-2).
+ *
+ * 눌렀다가 살짝 커졌다 제자리로 돌아옵니다. 눌림만으로는 "닿았다"까지고,
+ * 이 되튐이 있어야 "선택됐다"로 읽힙니다.
+ */
+export const selectPop: { scale: number[]; transition: Transition } = {
+  scale: [TAP_SCALE, 1.02, 1],
+  transition: { duration: 0.25 },
+}
+
+/**
+ * 시작 버튼 숨쉬기 (FIX_3 [7]-3).
+ *
+ * 가만히 있는 버튼은 화면의 일부로 보입니다. 아주 조금 커졌다 작아지면
+ * 눈이 그쪽으로 갑니다. 2%는 알아채기 전에 시선만 끄는 크기입니다.
+ *
+ * repeatDelay 1초를 두는 이유는 쉬지 않고 뛰면 초조해 보이기 때문입니다.
+ */
+export const BREATHE: { animate: TargetAndTransition; transition: Transition } = {
+  animate: { scale: [1, 1.02, 1] },
+  transition: {
+    duration: 2.4,
+    repeat: Infinity,
+    ease: 'easeInOut',
+    repeatDelay: 1,
+  },
+}
+
+/**
+ * 시작 버튼 빛 훑기 (FIX_3 [7]-3).
+ *
+ * 버튼 위를 흰 띠가 비스듬히 지나갑니다. 손가락 아이콘은 쓰지 않습니다.
+ * 촌스럽고 사주 서비스 톤에 맞지 않습니다.
+ */
+export const SHINE: { animate: TargetAndTransition; transition: Transition } = {
+  animate: { x: ['-120%', '220%'] },
+  transition: { duration: 1.6, repeat: Infinity, repeatDelay: 2.5 },
+}
+
+/**
+ * 햅틱 (FIX_3 [7]-4).
+ *
+ * 대화형 선택지 탭에만 씁니다. 8ms는 "톡" 하고 끝나는 길이입니다.
+ * 화면 전환이나 제출까지 진동하면 시끄럽습니다.
+ *
+ * iOS Safari는 Vibration API를 지원하지 않습니다. optional chaining으로
+ * 넘기면 되고, 지원 여부를 따로 확인할 필요는 없습니다.
+ */
+export function haptic(ms = 8): void {
+  if (typeof navigator === 'undefined') return
+  try {
+    navigator.vibrate?.(ms)
+  } catch {
+    // 사용자가 진동을 꺼둔 경우 등. 실패해도 할 일이 없습니다
+  }
+}
 
 /**
  * 페이지 전환 (PRD 21.12)

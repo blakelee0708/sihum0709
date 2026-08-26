@@ -7,24 +7,39 @@
  * 알려줄 시각 신호가 이것뿐입니다. 반응이 없으면 사용자는 안 눌렸다고
  * 생각하고 한 번 더 누릅니다.
  *
- * 0.97은 눈에 보이되 레이아웃이 흔들리지 않는 선입니다. 더 줄이면
- * 카드가 통째로 움찔거리고, 덜 줄이면 눌렸는지 알 수 없습니다.
+ * 크기·색·속도 세 가지를 겹쳐야 확실합니다. 값은 lib/motion.ts에
+ * 모여 있습니다 (FIX_3 [7]-1).
  *
  * MotionLink / MotionButton은 next/link와 button을 감싼 것입니다.
  * div로 한 겹 더 싸면 레이아웃이 바뀌므로 요소 자체를 모션으로 만듭니다.
  */
 
 import Link from 'next/link'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion, type TargetAndTransition } from 'framer-motion'
 
-import { TAP_SCALE } from '@/lib/motion'
+import { TAP_SCALE, TAP_SPRING, TAP_SURFACE_BG } from '@/lib/motion'
 
 /** 눌림만 담당합니다. 나머지 속성은 그대로 넘어갑니다 */
 export const MotionLink = motion(Link)
 export const MotionButton = motion.button
 
-/** whileTap에 넣을 값. reduced motion이면 눌림도 끕니다 */
-export function useTap(): { scale: number } | undefined {
+/**
+ * whileTap에 넣을 값. reduced motion이면 눌림도 끕니다.
+ *
+ * 밝은 배경 버튼은 'surface'를 넘겨 배경까지 진해지게 합니다. 어두운
+ * 버튼에 쓰면 흰 글자가 순간 안 보입니다 (lib/motion.ts).
+ *
+ * 배경색을 함께 바꾸려면 그 버튼의 초기 배경이 backgroundColor로
+ * 지정돼 있어야 합니다. background 단축 속성으로 두면 framer가 되돌릴
+ * 값을 못 찾습니다.
+ */
+export function useTap(
+  variant: 'solid' | 'surface' = 'solid'
+): TargetAndTransition | undefined {
   const shouldReduceMotion = useReducedMotion()
-  return shouldReduceMotion ? undefined : { scale: TAP_SCALE }
+  if (shouldReduceMotion) return undefined
+
+  return variant === 'surface'
+    ? { scale: TAP_SCALE, backgroundColor: TAP_SURFACE_BG, transition: TAP_SPRING }
+    : { scale: TAP_SCALE, transition: TAP_SPRING }
 }

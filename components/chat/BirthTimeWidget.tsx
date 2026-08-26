@@ -19,9 +19,9 @@
  */
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 
-import { optionMotion } from '@/lib/motion'
+import { haptic, optionMotion } from '@/lib/motion'
 import { useTap } from '@/components/motion/Pressable'
 
 interface Period {
@@ -58,7 +58,10 @@ export default function BirthTimeWidget({ onSubmit }: Props) {
   const [period, setPeriod] = useState<Period | null>(null)
   const [hour, setHour] = useState<number | null>(null)
   const [minute, setMinute] = useState('')
-  const tap = useTap()
+  // 고른 버튼은 진한 배경이 되므로 눌림 색을 빼야 글자가 안 묻힙니다
+  const surfaceTap = useTap('surface')
+  const solidTap = useTap()
+  const shouldReduceMotion = useReducedMotion()
 
   const minuteValue = minute === '' ? 0 : Number(minute)
   const minuteValid = minuteValue >= 0 && minuteValue <= 59
@@ -78,17 +81,18 @@ export default function BirthTimeWidget({ onSubmit }: Props) {
           return (
             <motion.button
               key={p.id}
-              {...optionMotion(i)}
-              whileTap={tap}
+              {...optionMotion(i, selected && !shouldReduceMotion)}
+              whileTap={selected ? solidTap : surfaceTap}
               type="button"
               onClick={() => {
+                haptic()
                 setPeriod(p)
                 setHour(null)
               }}
               aria-pressed={selected}
               className="min-h-[44px] w-full px-2 py-[11px] text-chat"
               style={{
-                background: selected ? 'var(--primary)' : 'var(--surface)',
+                backgroundColor: selected ? 'var(--primary)' : 'var(--surface)',
                 border: `1px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
                 borderRadius: 'var(--radius-button)',
                 color: selected ? '#FFFFFF' : 'var(--text)',
@@ -107,14 +111,17 @@ export default function BirthTimeWidget({ onSubmit }: Props) {
             return (
               <motion.button
                 key={h}
-                {...optionMotion(i)}
-                whileTap={tap}
+                {...optionMotion(i, selected && !shouldReduceMotion)}
+                whileTap={selected ? solidTap : surfaceTap}
                 type="button"
-                onClick={() => setHour(h)}
+                onClick={() => {
+                  haptic()
+                  setHour(h)
+                }}
                 aria-pressed={selected}
                 className="min-h-[44px] w-full px-2 py-[11px] text-chat"
                 style={{
-                  background: selected ? 'var(--primary)' : 'var(--surface)',
+                  backgroundColor: selected ? 'var(--primary)' : 'var(--surface)',
                   border: `1px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
                   borderRadius: 'var(--radius-button)',
                   color: selected ? '#FFFFFF' : 'var(--text)',
@@ -157,7 +164,7 @@ export default function BirthTimeWidget({ onSubmit }: Props) {
 
       <motion.button
         {...optionMotion(2)}
-        whileTap={tap}
+        whileTap={solidTap}
         type="submit"
         disabled={hour === null || !minuteValid}
         className="min-h-[44px] w-full text-chat text-white disabled:opacity-40"

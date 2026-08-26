@@ -13,7 +13,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
-import { motion } from 'framer-motion'
 
 import {
   SESSION_KEY,
@@ -25,11 +24,7 @@ import {
   type Step,
   type StepId,
 } from '@/lib/content/chat-flow'
-import {
-  NEXT_QUESTION_DELAY_MS,
-  OPTION_DELAY_MS,
-  optionMotion,
-} from '@/lib/motion'
+import { NEXT_QUESTION_DELAY_MS, OPTION_DELAY_MS } from '@/lib/motion'
 import { track } from '@/lib/analytics'
 import type { ExamType, CompanyScale, WorkType } from '@/lib/saju/constants'
 import type { ExamPeriod } from '@/lib/content/assemble'
@@ -41,6 +36,7 @@ import TextInputWidget from './TextInputWidget'
 import DateFieldWidget from './DateFieldWidget'
 import StartTimeWidget from './StartTimeWidget'
 import BirthTimeWidget from './BirthTimeWidget'
+import FinishButton from './FinishButton'
 
 interface Props {
   /** 대화가 끝나고 [결과 보기]를 눌렀을 때 */
@@ -335,22 +331,13 @@ function StepWidget({
 
     case 'finish':
       return (
-        <motion.button
-          {...optionMotion(0)}
-          type="button"
-          onClick={() => {
+        <FinishButton
+          label={finishLabel}
+          onFinish={() => {
             track('chat_completed')
             onFinish()
           }}
-          className="min-h-[44px] w-full py-3 text-chat text-white"
-          style={{
-            background: 'var(--button)',
-            borderRadius: 'var(--radius-button)',
-            boxShadow: 'var(--shadow-button)',
-          }}
-        >
-          {finishLabel}
-        </motion.button>
+        />
       )
   }
 }

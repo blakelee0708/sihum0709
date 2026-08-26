@@ -83,7 +83,8 @@ export default function DateFieldWidget({ mode, lunar, onSubmit }: Props) {
 
   const monthRef = useRef<HTMLInputElement>(null)
   const dayRef = useRef<HTMLInputElement>(null)
-  const tap = useTap()
+  const tap = useTap('surface')
+  const solidTap = useTap()
 
   const filled = year.length === 4 && month.length >= 1 && day.length >= 1
 
@@ -250,7 +251,7 @@ export default function DateFieldWidget({ mode, lunar, onSubmit }: Props) {
               }}
               className="min-h-[44px] w-full px-[14px] py-[11px] text-chat"
               style={{
-                background: 'var(--surface)',
+                backgroundColor: 'var(--surface)',
                 border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-button)',
                 color: 'var(--text)',
@@ -264,7 +265,7 @@ export default function DateFieldWidget({ mode, lunar, onSubmit }: Props) {
 
       <motion.button
         {...optionMotion(1)}
-        whileTap={tap}
+        whileTap={solidTap}
         type="submit"
         disabled={!filled}
         className="min-h-[44px] w-full text-chat text-white disabled:opacity-40"

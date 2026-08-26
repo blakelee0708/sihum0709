@@ -14,7 +14,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Clock } from 'lucide-react'
 
-import { optionMotion } from '@/lib/motion'
+import { haptic, optionMotion } from '@/lib/motion'
 import { useTap } from '@/components/motion/Pressable'
 
 /** 'HH:mm' */
@@ -35,7 +35,9 @@ interface Props {
 export default function StartTimeWidget({ skipLabel, onSubmit, onSkip }: Props) {
   const [manual, setManual] = useState(false)
   const [value, setValue] = useState('')
-  const tap = useTap()
+  // 밝은 버튼은 배경까지 진해지고, 어두운 확인 버튼은 크기만 줄어듭니다
+  const tap = useTap('surface')
+  const solidTap = useTap()
 
   if (manual) {
     return (
@@ -55,7 +57,7 @@ export default function StartTimeWidget({ skipLabel, onSubmit, onSkip }: Props) 
           aria-label="시험 시작 시간"
           className="min-h-[44px] w-full px-[14px] py-[11px] text-chat"
           style={{
-            background: 'var(--surface)',
+            backgroundColor: 'var(--surface)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-button)',
             color: 'var(--text)',
@@ -64,7 +66,7 @@ export default function StartTimeWidget({ skipLabel, onSubmit, onSkip }: Props) 
 
         <motion.button
           {...optionMotion(1)}
-          whileTap={tap}
+          whileTap={solidTap}
           type="submit"
           disabled={!value}
           className="min-h-[44px] w-full text-chat text-white disabled:opacity-40"
@@ -88,10 +90,13 @@ export default function StartTimeWidget({ skipLabel, onSubmit, onSkip }: Props) 
             {...optionMotion(i)}
             whileTap={tap}
             type="button"
-            onClick={() => onSubmit(p.value)}
+            onClick={() => {
+              haptic()
+              onSubmit(p.value)
+            }}
             className="min-h-[44px] w-full px-[14px] py-[11px] text-chat"
             style={{
-              background: 'var(--surface)',
+              backgroundColor: 'var(--surface)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-button)',
               color: 'var(--text)',
@@ -106,10 +111,13 @@ export default function StartTimeWidget({ skipLabel, onSubmit, onSkip }: Props) 
         {...optionMotion(START_TIME_PRESETS.length)}
         whileTap={tap}
         type="button"
-        onClick={() => setManual(true)}
+        onClick={() => {
+          haptic()
+          setManual(true)
+        }}
         className="flex min-h-[44px] w-full items-center justify-center gap-2 px-[14px] py-[11px] text-chat"
         style={{
-          background: 'var(--surface)',
+          backgroundColor: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius-button)',
           color: 'var(--text-sub)',
@@ -123,7 +131,10 @@ export default function StartTimeWidget({ skipLabel, onSubmit, onSkip }: Props) 
         {...optionMotion(START_TIME_PRESETS.length + 1)}
         whileTap={tap}
         type="button"
-        onClick={onSkip}
+        onClick={() => {
+          haptic()
+          onSkip()
+        }}
         className="min-h-[44px] w-full text-chat"
         style={{ color: 'var(--text-sub)' }}
       >

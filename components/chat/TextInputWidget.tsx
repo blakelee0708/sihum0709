@@ -10,6 +10,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 
 import { optionMotion } from '@/lib/motion'
+import { useTap } from '@/components/motion/Pressable'
 
 interface Props {
   placeholder?: string
@@ -28,6 +29,7 @@ export default function TextInputWidget({
 }: Props) {
   const [value, setValue] = useState('')
   const trimmed = value.trim()
+  const tap = useTap()
 
   return (
     <form
@@ -56,6 +58,7 @@ export default function TextInputWidget({
 
       <motion.button
         {...optionMotion(1)}
+        whileTap={tap}
         type="submit"
         disabled={!trimmed}
         className="min-h-[44px] w-full text-chat text-white disabled:opacity-40"
@@ -70,6 +73,7 @@ export default function TextInputWidget({
       {skipLabel && onSkip && (
         <motion.button
           {...optionMotion(2)}
+          whileTap={tap}
           type="button"
           onClick={onSkip}
           className="min-h-[44px] w-full text-chat"
