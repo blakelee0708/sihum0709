@@ -7,23 +7,15 @@
 
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 
-import { CHARACTER_HERO, CHARACTER_NAME } from '@/lib/content/characters'
+import HeroCharacter from './HeroCharacter'
 import { track } from '@/lib/analytics'
 
 export default function Hero() {
   return (
     <section className="px-screen pt-6 text-center">
-      <Image
-        src={CHARACTER_HERO}
-        alt={`손을 흔들며 인사하는 ${CHARACTER_NAME}`}
-        width={320}
-        height={320}
-        priority
-        className="mx-auto h-auto w-[280px] max-w-full sm:w-[320px]"
-      />
+      <HeroCharacter />
 
       <h1 className="mt-2 text-headline">
         시험 보는 날,

@@ -83,6 +83,19 @@ export const CHARACTER_PROFILE = '/character/char-profile.png'
 /** 홈 히어로 (PRD 21.12) */
 export const CHARACTER_HERO = '/character/hero.png'
 
+/**
+ * 랜딩 애니메이션용 분리 이미지 (PRD 21.6).
+ *
+ * hero-body.png  흔드는 팔을 제외한 전신. 팔이 붙어 있던 자리는 어깨선으로 마감
+ * hero-arm.png   흔드는 팔만. 어깨 관절이 캔버스 하단 중앙에 오도록 배치
+ *
+ * 아직 제작 전이라 null입니다. 파일을 public/character/에 넣고 아래 두 값을
+ * 채우면 HeroCharacter가 자동으로 두 장 구성으로 바뀝니다.
+ * 그 전까지는 hero.png 한 장으로 몸통만 움직입니다.
+ */
+export const CHARACTER_HERO_BODY: string | null = null
+export const CHARACTER_HERO_ARM: string | null = null
+
 // ─── PRD 7.3 유형 뱃지 5종 ───
 
 export interface TypeBadge {

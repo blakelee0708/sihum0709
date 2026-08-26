@@ -43,3 +43,75 @@ body {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
+
+/* ── PRD 21.6 캐릭터 애니메이션 ───────────────────────────────
+ *
+ * GIF 대신 CSS로 움직입니다. GIF는 알파 채널이 없어 투명 배경 가장자리가
+ * 계단처럼 각지고, 1024px 기준 2-3MB라 첫 화면 로딩이 늦어집니다.
+ *
+ * 이미지 두 장이 필요합니다.
+ *   hero-body.png   흔드는 팔을 제외한 전신
+ *   hero-arm.png    흔드는 팔만, 어깨 관절이 캔버스 하단 중앙
+ *
+ * 팔 이미지가 아직 없으면 몸통만 표시되고 breathe만 돕니다.
+ * 파일을 넣으면 Hero가 자동으로 팔을 얹습니다.
+ */
+
+.hero-arm {
+  position: absolute;
+  transform-origin: bottom center;
+  animation: wave 1.4s ease-in-out infinite;
+}
+
+@keyframes wave {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-14deg);
+  }
+  75% {
+    transform: rotate(14deg);
+  }
+}
+
+.hero-body {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.01);
+  }
+}
+
+/* char-05의 반짝임을 따로 뽑으면 같은 방식으로 깜빡일 수 있습니다 */
+.sparkle {
+  animation: twinkle 1.8s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* 위 * 선택자가 이미 잡지만, PRD 21.6이 명시한 규칙이라 그대로 둡니다 */
+@media (prefers-reduced-motion: reduce) {
+  .hero-arm,
+  .hero-body,
+  .sparkle {
+    animation: none;
+  }
+}
