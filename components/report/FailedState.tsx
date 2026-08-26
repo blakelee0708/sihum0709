@@ -28,6 +28,8 @@ interface Props {
   headline?: string
   /** 한 줄이 배열 한 칸입니다 */
   description?: string[]
+  /** 재시도가 의미 없는 경우 (환불 등) 버튼을 숨깁니다 */
+  hideRetry?: boolean
 }
 
 const DEFAULT_DESCRIPTION = [
@@ -41,12 +43,13 @@ export default function FailedState({
   onRetry,
   headline = '리포트 생성에 실패했어요',
   description = DEFAULT_DESCRIPTION,
+  hideRetry = false,
 }: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const canRetry = retryCount < MAX_RETRY
+  const canRetry = !hideRetry && retryCount < MAX_RETRY
 
   async function handleRetry() {
     setBusy(true)

@@ -127,7 +127,7 @@ export default async function ReportPage({
     return (
       <FailedState
         reportId={report.id}
-        retryCount={3}
+        hideRetry
         headline="환불된 리포트예요"
         description={[
           '이 리포트는 환불 처리되었습니다.',
