@@ -214,12 +214,17 @@ describe('생성 중 대기 화면 (PRD 14.11)', () => {
     }
   })
 
-  it('타임아웃이 실측 소요 시간보다 넉넉하다', () => {
+  it('타임아웃이 PRD 14.11의 150초다', () => {
     const last = GENERATING_STEPS.필기[GENERATING_STEPS.필기.length - 1].at
-    expect(GENERATING_TIMEOUT_MS).toBe(240_000)
+    expect(GENERATING_TIMEOUT_MS).toBe(150_000)
     expect(GENERATING_TIMEOUT_MS / 1000).toBeGreaterThan(last)
-    // 실측 최댓값(필기 188.7초)보다 커야 정상 완료를 실패로 처리하지 않습니다
-    expect(GENERATING_TIMEOUT_MS / 1000).toBeGreaterThan(190)
+  })
+
+  it('필기 58초 문구가 검색 제거를 반영한다 (PRD 8.12, 21.11)', () => {
+    const step = GENERATING_STEPS.필기.find((s) => s.at === 58)!
+    expect(step.text).toBe('남은 기간 배분을 계산하는 중이에요')
+    // 과목 검색을 없앴으므로 과목이라는 말을 쓰지 않습니다
+    expect(GENERATING_STEPS.필기.some((s) => s.text.includes('과목'))).toBe(false)
   })
 
   it('자리표시자를 남기지 않는다', () => {

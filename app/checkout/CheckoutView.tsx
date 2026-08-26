@@ -33,7 +33,7 @@ import { track } from '@/lib/analytics'
 
 /**
  * 리포트 생성이 2-3분 걸립니다. 그 사이 사용자를 붙들고 있는 곳이 이 화면이라
- * 대기 화면(PRD 14.11)도 여기서 보여줍니다. 240초를 넘기면 실패로 봅니다.
+ * 대기 화면(PRD 14.11)도 여기서 보여줍니다. 150초를 넘기면 실패로 봅니다.
  */
 type Phase = 'ready' | 'paying' | 'generating' | 'timeout' | 'error'
 
