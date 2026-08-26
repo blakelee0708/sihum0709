@@ -75,6 +75,46 @@ describe('섹션 지시', () => {
   })
 })
 
+describe('단위당 분량', () => {
+  it('AI가 쓰는 모든 섹션에 칸 수가 있다', () => {
+    for (const type of ['필기', '면접'] as const) {
+      for (const range of ['normal', 'short', 'eve', 'dday'] as const) {
+        for (const hasStartTime of [true, false]) {
+          const spec = getReportSpec(type, range, 2026, { hasStartTime })
+          for (const s of spec.sections.filter((x) => x.source !== 'calc')) {
+            expect(s.units, `${type}/${range} ${s.key}에 units가 없습니다`).toBeTruthy()
+          }
+        }
+      }
+    }
+  })
+
+  it('칸 수로 나눈 범위가 뒤집히지 않는다', () => {
+    // 칸을 너무 잘게 쪼개면 하한/칸 > 상한/칸이 되어 지킬 수 없는 지시가
+    // 나갑니다. 예전에 brief에 손으로 적어 둔 숫자가 딱 그랬습니다.
+    for (const type of ['필기', '면접'] as const) {
+      const spec = getReportSpec(type, 'normal', 2026, { hasStartTime: true })
+      for (const s of spec.sections.filter((x) => x.source !== 'calc')) {
+        const n = typeof s.units === 'number' ? s.units : null
+        if (!n) continue
+        const min = Math.ceil(s.minChars / n)
+        const max = Math.floor(s.maxChars / n)
+        expect(min, `${s.key} ${min}~${max}자`).toBeLessThanOrEqual(max)
+        // 한 칸이 40자도 안 되면 문단이 아니라 문장 조각입니다
+        expect(min, `${s.key} 한 칸이 너무 작습니다`).toBeGreaterThanOrEqual(40)
+      }
+    }
+  })
+
+  it('프롬프트에 단위당 분량이 계산돼 나온다', () => {
+    const { prompt } = written()
+    // 시간대 4구간, 500~650자 → 하나당 125~162자
+    expect(prompt).toContain('500~650자 · 4개로 나누면 하나당 125~162자')
+    // 7일 플랜은 재료의 날짜 수(8일)를 세서 나눕니다
+    expect(prompt).toContain('600~800자 · 8개로 나누면 하나당 75~100자')
+  })
+})
+
 describe('출력 형식 지시', () => {
   it('줄바꿈을 두 글자 이스케이프로 쓰라고 지시한다', () => {
     // 실측에서 4건 중 1건이 여기서 죽었습니다.

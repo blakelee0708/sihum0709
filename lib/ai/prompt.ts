@@ -23,7 +23,7 @@ import {
   type Shipsin,
   type ShipsinPosition,
 } from '../saju/shipsin'
-import type { ReportSpec } from './spec'
+import type { ReportSpec, SectionSpec, SectionUnits } from './spec'
 import { fillFragment } from './fragment'
 
 /**
@@ -419,6 +419,38 @@ JSON 객체 하나만 출력합니다. 코드 블록 표시나 설명을 붙이�
   틀림    "첫 문단입니다.
           둘째 문단입니다."`
 
+/**
+ * 이 섹션이 몇 개의 칸으로 나뉘는지.
+ *
+ * 재료에 따라 달라지는 섹션은 재료를 세어 정합니다. 시간대는 시작 시각에
+ * 따라, 날짜는 D-day 구간에 따라 개수가 달라집니다.
+ */
+function resolveUnits(
+  units: SectionUnits | undefined,
+  material: PromptMaterial
+): number | null {
+  if (typeof units === 'number') return units > 0 ? units : null
+  if (units === 'timeSlots') return material.timeSlots.length || null
+  if (units === 'weekFlow') return material.fortune.weekFlow.length || null
+  return null
+}
+
+/**
+ * 분량 한 줄.
+ *
+ * 칸 수를 알면 단위당 분량까지 나눠서 붙입니다. 전체 글자 수는 못 세도
+ * "이 문단은 100자쯤"은 감이 잡힙니다. 나눗셈을 코드가 하므로 범위를
+ * 바꿔도 지시가 어긋나지 않습니다 (spec.ts SectionSpec.units).
+ */
+function lengthLine(section: SectionSpec, material: PromptMaterial): string {
+  const base = `${section.minChars}~${section.maxChars}자`
+  const n = resolveUnits(section.units, material)
+  if (!n) return `${base} (구성을 지키면 대체로 이 안에 들어옵니다)`
+
+  const per = `${Math.ceil(section.minChars / n)}~${Math.floor(section.maxChars / n)}자`
+  return `${base} · ${n}개로 나누면 하나당 ${per}`
+}
+
 /** 사용자 메시지 — 재료 JSON과 섹션별 지시 */
 export function buildUserPrompt(
   material: PromptMaterial,
@@ -433,7 +465,7 @@ export function buildUserPrompt(
       (s) =>
         `- ${s.key} (${s.title})\n` +
         (s.structure ? `    구성: ${s.structure}\n` : '') +
-        `    분량: ${s.minChars}~${s.maxChars}자 (구성을 지키면 대체로 이 안에 들어옵니다)\n` +
+        `    분량: ${lengthLine(s, material)}\n` +
         `    근거로 쓸 계산값: ${s.basis}\n` +
         (s.brief ? `    ${s.brief}\n` : '')
     )
