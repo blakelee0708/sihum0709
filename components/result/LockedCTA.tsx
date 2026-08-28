@@ -10,6 +10,7 @@
  * 알림 받기를 노출합니다 (PRD 8.2).
  */
 
+import { PRICE } from '@/lib/pricing'
 import { MotionLink, useTap } from '@/components/motion/Pressable'
 import { Lock } from 'lucide-react'
 
@@ -60,7 +61,11 @@ const LOCKED: Record<'필기' | '면접', LockedSpec> = {
   },
 }
 
-export const PRICE = 3900
+/**
+ * 가격은 lib/pricing.ts 하나에서 옵니다 (FIX_4 [6]).
+ * 화면마다 상수를 두면 바꿀 때 한 곳이 남습니다.
+ */
+export { PRICE }
 
 interface Props {
   examType: ExamType

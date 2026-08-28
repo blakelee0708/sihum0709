@@ -28,10 +28,11 @@ import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChevronLeft, Mail } from 'lucide-react'
+import { Check, ChevronLeft, Mail } from 'lucide-react'
 
 import { CHARACTER_NAME } from '@/lib/content/characters'
 import { checkCoupon, readCoupon } from '@/lib/coupon'
+import { SIGNUP_BENEFITS } from '@/lib/pricing'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client'
 
 function LoginForm() {
@@ -164,9 +165,23 @@ function LoginForm() {
               <br />
               결과를 저장하세요
             </h1>
-            <p className="mt-2 text-center text-body" style={{ color: 'var(--text-sub)' }}>
-              다음에 입력 없이 볼 수 있어요
-            </p>
+
+            {/*
+              신규 가입 혜택은 할인이 아니라 기능입니다 (FIX_4 [6]).
+              가격은 3,900원 그대로 두고, 로그인할 이유를 여기서 답합니다.
+            */}
+            <ul className="mt-3 space-y-1">
+              {SIGNUP_BENEFITS.map((b) => (
+                <li
+                  key={b}
+                  className="flex items-start justify-center gap-1.5 text-body"
+                  style={{ color: 'var(--text-sub)' }}
+                >
+                  <Check size={16} aria-hidden className="mt-1 shrink-0" style={{ color: 'var(--primary)' }} />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
           </>
         )}
 

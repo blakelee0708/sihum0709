@@ -11,13 +11,15 @@
  * 브라우저에서만 쓰는 값이라 서버 모듈을 import하지 않습니다.
  */
 
+import { PRICE } from './pricing'
+
 export const COUPON_SESSION_KEY = 'coupon'
 
 /** 링크의 쿼리 파라미터 이름. 짧아야 링크가 지저분해지지 않습니다 */
 export const COUPON_PARAM = 'c'
 
-/** 정가 (PRD 8.1). 3,900원을 유지합니다 (FIX_4 [6]) */
-export const PRICE = 3900
+/** 정가는 lib/pricing.ts 하나에서 옵니다 (FIX_4 [6]) */
+export { PRICE }
 
 export function saveCoupon(code: string): void {
   try {
