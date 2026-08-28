@@ -6,6 +6,7 @@
  */
 
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
 import Disclaimer from '@/components/layout/Disclaimer'
@@ -24,6 +25,7 @@ import {
   type ExamPeriod,
   type UserInput,
 } from '@/lib/content/assemble'
+import { CHARACTER_NAME } from '@/lib/content/characters'
 import { getMonthFlow } from '@/lib/saju/fortune'
 import type { CompanyScale, ExamType, WorkType } from '@/lib/saju/constants'
 import { getReportSpec, type SectionSpec } from '@/lib/ai/spec'
@@ -321,6 +323,31 @@ export default async function ReportPage({
             />
           )
         })}
+      </div>
+
+      {/*
+        리포트 후 대화 (FIX_4 [3]-1).
+
+        3,900원에 포함된 기능이라 결제 안내를 붙이지 않습니다. 대신 "기운이
+        떨어질 때까지"라고 적어 무제한이 아니라는 것만 미리 알립니다.
+      */}
+      <div className="mt-section px-screen">
+        <Link
+          href={`/report/${report.id}/chat`}
+          className="flex min-h-[52px] w-full items-center justify-center px-4 text-body font-semibold text-white"
+          style={{
+            background: 'var(--button)',
+            borderRadius: 'var(--radius-button)',
+            boxShadow: 'var(--shadow-button)',
+          }}
+        >
+          {CHARACTER_NAME}와 더 자세하게 이야기하러 가기
+        </Link>
+        <p className="mt-2 text-center text-label" style={{ color: 'var(--text-sub)' }}>
+          {CHARACTER_NAME}의 기운이 떨어질 때까지
+          <br />
+          대화를 나눌 수 있어요
+        </p>
       </div>
 
       <div className="mt-section px-screen">
