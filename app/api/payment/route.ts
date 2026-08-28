@@ -10,9 +10,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { consumeCoupon } from '@/lib/coupon-server'
 import { createClient, createServiceClient, isSupabaseConfigured } from '@/lib/supabase/server'
-
-const PRICE = 3900
 
 export async function POST(req: NextRequest) {
   if (!isSupabaseConfigured) {
@@ -47,7 +46,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'not found' }, { status: 404 })
   }
 
-  const { amount, couponCode } = await applyCoupon(body.couponCode ?? null)
+  // 확인과 사용을 나눠 뒀습니다. 여기가 실제로 쓰는 자리입니다 (lib/coupon-server.ts)
+  const { amount, couponCode } = await consumeCoupon(body.couponCode ?? null)
 
   // payments는 사용자 정책이 select 전용입니다 (PRD 13.2).
   // 사용자가 결제 기록을 직접 만들 수 없어야 하므로 service_role로 씁니다.
@@ -77,43 +77,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ id: data.id, amount })
-}
-
-/**
- * 쿠폰 적용 (PRD 12.6).
- * coupons 테이블은 클라이언트에서 접근하지 않으므로 service_role로 읽습니다.
- */
-async function applyCoupon(
-  code: string | null
-): Promise<{ amount: number; couponCode: string | null }> {
-  if (!code) return { amount: PRICE, couponCode: null }
-
-  const service = createServiceClient()
-  if (!service) return { amount: PRICE, couponCode: null }
-
-  const { data } = await service
-    .from('coupons')
-    .select('code, discount_type, discount_value, max_uses, used_count, valid_until')
-    .eq('code', code)
-    .maybeSingle()
-
-  if (!data) return { amount: PRICE, couponCode: null }
-  if (data.valid_until && new Date(data.valid_until) < new Date()) {
-    return { amount: PRICE, couponCode: null }
-  }
-  if (data.max_uses !== null && (data.used_count ?? 0) >= data.max_uses) {
-    return { amount: PRICE, couponCode: null }
-  }
-
-  const amount =
-    data.discount_type === 'percent'
-      ? Math.max(0, Math.round(PRICE * (1 - data.discount_value / 100)))
-      : Math.max(0, PRICE - data.discount_value)
-
-  await service
-    .from('coupons')
-    .update({ used_count: (data.used_count ?? 0) + 1 })
-    .eq('code', data.code)
-
-  return { amount, couponCode: data.code }
 }
