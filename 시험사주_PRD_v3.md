@@ -2459,6 +2459,42 @@ Supabase Auth를 사용합니다.
 
 용도는 인플루언서 제공, 이벤트 당첨, 사전 테스트입니다. CS 보상은 쿠폰이 아니라 관리자 직접 지급(22.6)으로 처리합니다.
 
+확인과 사용을 나눕니다(`lib/coupon-server.ts`). 화면이 "이 코드를 쓰면 얼마인지"를 물을 때 사용 횟수를 올리면, 결제하지 않고 화면만 본 사람의 쿠폰이 소진됩니다.
+
+### 12.9 457deep 무료권 연동 (FIX_4 [5])
+
+운영자가 함께 운영하는 457deep(취준생 구독 사이트)에서 시험사주 무료권을 발급합니다.
+
+```
+POST /api/coupon/issue
+X-API-Key: <COUPON_API_KEY>
+
+{ "source": "457deep", "externalUserId": "xxx" }
+
+  1. API 키 검증
+  2. 같은 (source, externalUserId)로 이미 발급했으면 기존 코드 반환
+  3. 없으면 새 코드 생성
+       discount_type: 'percent' · discount_value: 100
+       max_uses: 1 · valid_until: 발급일 + 30일
+  4. 코드 반환
+```
+
+재시도나 새로고침으로 무료권이 늘어나면 안 되므로 `(source, external_user_id)`에 유니크 인덱스를 겁니다. 코드 문자 집합에서 0/O, 1/I은 뺐습니다. 링크로만 쓰면 상관없지만 사람이 옮겨 적는 경우가 반드시 생깁니다.
+
+**링크로 자동 적용됩니다.**
+
+```
+https://www.sajudday.com?c=A7K2M9
+```
+
+진입 시 `c` 파라미터를 sessionStorage에 담고(`components/layout/EntryCapture.tsx`), 결제 화면에서 자동으로 채워진 상태로 보여줍니다. 사용자가 코드를 복사해서 붙여넣을 필요가 없어야 합니다. 로그인 화면에서는 "결제 금액 0원"을 먼저 알립니다(11.7).
+
+sessionStorage를 쓰는 이유는 탭을 닫으면 사라져야 하기 때문입니다. 다음에 링크 없이 들어온 사람에게 남의 코드가 붙어 있으면 안 됩니다.
+
+**유입 기록.** `profiles.source`에 '457deep', 'organic', 'share' 등을 남깁니다. 첫 유입만 기록하고 덮어쓰지 않습니다. 알고 싶은 것은 "처음 어디서 왔는가"입니다. 로그인 전에는 세션에 두었다가 로그인 후 `/api/profile/source`로 한 번만 보냅니다.
+
+마이그레이션은 `supabase/migrations/008_coupon_source.sql`입니다.
+
 ### 12.7 목업 단계 처리
 
 결제 연동 전 단계에서는 결제 버튼을 더미로 두고, 클릭 시 이메일 수집 화면으로 연결합니다.

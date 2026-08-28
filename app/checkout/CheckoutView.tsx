@@ -28,6 +28,7 @@ import { getReportDdayRange, diffDays } from '@/lib/saju/fortune'
 import { parseLocalDateTime } from '@/lib/saju/calculate'
 import { buildFreeResult, formatExamDate, type UserInput } from '@/lib/content/assemble'
 import { track } from '@/lib/analytics'
+import { checkCoupon, clearCoupon, readCoupon } from '@/lib/coupon'
 
 /**
  * 리포트 생성이 2-3분 걸립니다. 그 사이 사용자를 붙들고 있는 곳이 이 화면이라
@@ -42,11 +43,35 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
   const [companyName, setCompanyName] = useState<string | null>(null)
   const [agreed, setAgreed] = useState(false)
   const [coupon, setCoupon] = useState('')
+  /** 링크로 들어온 쿠폰이 실제로 유효한지 (FIX_4 [5]-2) */
+  const [couponFree, setCouponFree] = useState(false)
   const [phase, setPhase] = useState<Phase>('ready')
   const [error, setError] = useState<string | null>(null)
 
   // 명식과 오행 분포는 AI 없이 코드가 즉시 계산합니다. 대기 화면에서 먼저 보여줍니다.
   const free = useMemo(() => (input ? buildFreeResult(input) : null), [input])
+
+  /**
+   * 링크로 들어온 쿠폰을 자동으로 채웁니다 (FIX_4 [5]-2).
+   *
+   * 사용자가 코드를 복사해서 붙여넣을 필요가 없어야 합니다. 유효한
+   * 코드일 때만 안내를 띄웁니다. 서버가 결제 시점에 다시 확인하므로
+   * 여기 표시는 안내일 뿐입니다.
+   */
+  useEffect(() => {
+    const code = readCoupon()
+    if (!code) return
+
+    setCoupon(code)
+
+    let alive = true
+    checkCoupon(code).then((r) => {
+      if (alive && r.valid && r.free) setCouponFree(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   useEffect(() => {
     try {
@@ -121,6 +146,10 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
       }
       if (!payRes.ok) throw new Error('payment')
       const paymentId = ((await payRes.json()) as { id?: string }).id ?? null
+
+      // 쓴 쿠폰은 세션에서 지웁니다. 남겨 두면 다음 결제 화면에 이미
+      // 소진된 코드가 자동으로 채워집니다 (FIX_4 [5]-2)
+      clearCoupon()
 
       track('payment_completed', {
         examType: input.examType,
@@ -269,7 +298,10 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
             id="coupon"
             type="text"
             value={coupon}
-            onChange={(e) => setCoupon(e.target.value.toUpperCase())}
+            onChange={(e) => {
+              setCoupon(e.target.value.toUpperCase())
+              setCouponFree(false)
+            }}
             placeholder="쿠폰이 있으시면 입력해 주세요"
             className="mt-1 min-h-[48px] w-full px-4 text-body"
             style={{
@@ -279,6 +311,12 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
               color: 'var(--text)',
             }}
           />
+
+          {couponFree && (
+            <p className="mt-2 text-body" style={{ color: 'var(--primary)' }}>
+              무료권이 적용됐어요 · 결제 금액 0원
+            </p>
+          )}
         </div>
 
         {/* PRD 12.3 청약철회 제한 고지 — 결제 버튼 위에 동의 체크박스 */}

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { pretendard } from './fonts/pretendard'
 import './globals.css'
+import EntryCapture from '@/components/layout/EntryCapture'
 import TabBar, { TabBarSpacer } from '@/components/layout/TabBar'
 import { getSiteUrl } from '@/lib/site-url'
 
@@ -52,6 +53,8 @@ export default function RootLayout({
   return (
     <html lang="ko" className={pretendard.variable}>
       <body className="font-sans antialiased">
+        {/* 쿠폰 링크와 유입 경로를 받아 둡니다 (FIX_4 [5]-2, [5]-3) */}
+        <EntryCapture />
         {children}
         <TabBarSpacer />
         <TabBar />
