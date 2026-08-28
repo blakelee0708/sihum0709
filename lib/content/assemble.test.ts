@@ -21,7 +21,7 @@ import {
   PAID_SCRIPTS,
   SCRIPT_COUNT,
 } from './chat-scripts'
-import { TYPE_BADGES } from './characters'
+import { getCharacter, TYPE_BADGES } from './characters'
 import { ELEMENTS, WORK_TYPES, COMPANY_SCALES } from '../saju/constants'
 
 const METHODS = ['필기', '면접', '실기', '오디션'] as const
@@ -397,15 +397,51 @@ describe('무료 결과 조립', () => {
     for (const d of r.weekFlow) expect(d.label).toBeTruthy()
   })
 
-  it('점수는 0-100 범위 안에 있다', () => {
+  it('점수는 표시 범위 40-95 안에 있다 (FIX_4 [1])', () => {
     const r = buildFreeResult(BASE, TODAY)
-    expect(r.examDayScore).toBeGreaterThanOrEqual(0)
-    expect(r.examDayScore).toBeLessThanOrEqual(100)
-    expect(r.todayScore).toBeGreaterThanOrEqual(0)
-    expect(r.todayScore).toBeLessThanOrEqual(100)
+    expect(r.examDayScore).toBeGreaterThanOrEqual(40)
+    expect(r.examDayScore).toBeLessThanOrEqual(95)
+    expect(r.todayScore).toBeGreaterThanOrEqual(40)
+    expect(r.todayScore).toBeLessThanOrEqual(95)
     for (const d of r.weekFlow) {
-      expect(d.score).toBeGreaterThanOrEqual(0)
-      expect(d.score).toBeLessThanOrEqual(100)
+      expect(d.score).toBeGreaterThanOrEqual(40)
+      expect(d.score).toBeLessThanOrEqual(95)
+    }
+  })
+
+  it('생일을 바꿔가며 돌려도 40 아래가 나오지 않는다 (FIX_4 [1-1])', () => {
+    // 7일 흐름을 빼먹으면 여기서 잡힙니다. 차트에 20점짜리 막대가 서면 안 됩니다.
+    for (let day = 1; day <= 28; day += 1) {
+      const birthDate = `1999-03-${String(day).padStart(2, '0')}`
+      for (const examType of METHODS) {
+        const r = buildFreeResult({ ...BASE, birthDate, examType }, TODAY)
+        expect(r.examDayScore).toBeGreaterThanOrEqual(40)
+        expect(r.todayScore).toBeGreaterThanOrEqual(40)
+        expect(r.potentialScore).toBeGreaterThanOrEqual(85)
+        for (const d of r.weekFlow) expect(d.score).toBeGreaterThanOrEqual(40)
+      }
+    }
+  })
+
+  it('캐릭터는 새 구간을 따른다 (FIX_4 [1-4])', () => {
+    expect(getCharacter(95).file).toContain('char-05')
+    expect(getCharacter(85).file).toContain('char-05')
+    expect(getCharacter(84).file).toContain('char-04')
+    expect(getCharacter(75).file).toContain('char-04')
+    expect(getCharacter(74).file).toContain('char-03')
+    expect(getCharacter(62).file).toContain('char-03')
+    expect(getCharacter(61).file).toContain('char-02')
+    expect(getCharacter(50).file).toContain('char-02')
+    expect(getCharacter(49).file).toContain('char-01')
+    expect(getCharacter(40).file).toContain('char-01')
+  })
+
+  it('40~49 구간 문구가 절망적이지 않다 (FIX_4 [1-3])', () => {
+    const low = F.verdict['40-49']
+    expect(low).toBeTruthy()
+    expect(low).toContain('컨디션')
+    for (const bad of ['조심', '나쁜', '불리', '위험']) {
+      expect(low).not.toContain(bad)
     }
   })
 

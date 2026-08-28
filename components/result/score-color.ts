@@ -26,14 +26,18 @@
  * 낮은 점수에도 붉은 경고색을 쓰지 않고 주황 계열까지만 씁니다.
  */
 
+/**
+ * 운 지수는 40-95로 표시합니다 (FIX_4 [1]). 경계도 그 축으로 옮겼습니다.
+ * verdict·캐릭터 구간과 같은 자리에서 색이 바뀌도록 85와 62를 씁니다.
+ */
 export function scoreColor(score: number): string {
-  if (score >= 80) return 'var(--score-high)'
-  if (score >= 50) return 'var(--score-mid)'
+  if (score >= 85) return 'var(--score-high)'
+  if (score >= 62) return 'var(--score-mid)'
   return 'var(--score-low)'
 }
 
 /**
- * 발휘 지수는 70-120 범위라 0-100 기준 색을 그대로 쓸 수 없습니다.
+ * 발휘 지수는 85-120 범위라 40-95 기준 색을 그대로 쓸 수 없습니다.
  * 100을 기준으로 위아래를 나눕니다.
  */
 export function potentialColor(score: number): string {

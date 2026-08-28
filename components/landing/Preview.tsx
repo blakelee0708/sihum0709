@@ -24,16 +24,20 @@ import Reveal from '@/components/motion/Reveal'
 import WeekFlowBars from './WeekFlowBars'
 import { CHARACTER_NAME, TYPE_BADGES } from '@/lib/content/characters'
 
-/** D-7부터 당일까지 8일. 마지막이 시험 당일입니다 */
+/**
+ * D-7부터 당일까지 8일. 마지막이 시험 당일입니다.
+ * 표시 축이 40~95로 바뀌어(FIX_4 [1]) 예시 값도 그 축으로 옮겼습니다.
+ * 실제 서비스에서 나올 수 없는 38점짜리 막대가 미리보기에 서면 안 됩니다.
+ */
 const WEEK_FLOW = [
-  { label: 'D-7', score: 55 },
-  { label: '', score: 38 },
-  { label: '', score: 62 },
-  { label: '', score: 84 },
-  { label: '', score: 71 },
-  { label: '', score: 46 },
-  { label: '', score: 66 },
-  { label: '당일', score: 78 },
+  { label: 'D-7', score: 70 },
+  { label: '', score: 61 },
+  { label: '', score: 74 },
+  { label: '', score: 86 },
+  { label: '', score: 79 },
+  { label: '', score: 65 },
+  { label: '', score: 76 },
+  { label: '당일', score: 83 },
 ]
 
 const METHOD_FIT = [
@@ -96,7 +100,7 @@ export default function Preview() {
               시험 당일 운
             </p>
             <p className="text-score" style={{ color: 'var(--score-mid)' }}>
-              78
+              83
             </p>
           </div>
         </div>

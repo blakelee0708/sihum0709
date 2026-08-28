@@ -153,14 +153,14 @@ describe('잠재력 발휘 지수 (PRD 8.7)', () => {
     ).toBe(109)
   })
 
-  it('70에서 120으로 자른다', () => {
+  it('85에서 120으로 자른다 (FIX_4 [1-2])', () => {
+    // 100 - 10 - 8 - 2.4 = 79.6 이지만 하한이 85입니다
     const low = getPotentialScore({
       examDayRelation: '상극',
       startTimeRelation: '상극',
       methodFitScore: 58,
     })
-    expect(low).toBeGreaterThanOrEqual(70)
-    expect(low).toBeLessThanOrEqual(120)
+    expect(low).toBe(85)
 
     for (const fit of [58, 60, 70, 85]) {
       for (const rel of ['상생', '비화', '아극', '설기', '상극'] as const) {
@@ -169,7 +169,7 @@ describe('잠재력 발휘 지수 (PRD 8.7)', () => {
           startTimeRelation: rel,
           methodFitScore: fit,
         })
-        expect(n).toBeGreaterThanOrEqual(70)
+        expect(n).toBeGreaterThanOrEqual(85)
         expect(n).toBeLessThanOrEqual(120)
       }
     }

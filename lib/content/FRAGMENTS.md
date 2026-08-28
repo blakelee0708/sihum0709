@@ -123,7 +123,7 @@ PRD 3.8의 attachParticle 함수로 판정한 결과를 examParticle에 넣습�
   F.strongElement[saju.strong],
   F.weakElement[saju.weak],
   F.dayRelation[fortune.examDayRelation],
-  F.verdict[getScoreRange(fortune.examDayScore)]
+  F.verdict[getVerdictRange(fortune.examDayScore)]
 ]
 ```
 
@@ -203,24 +203,26 @@ F.startTimeByRelation[type][fortune.startTimeRelation]
 
 ```typescript
 function getScoreRange(score: number): string {
-  if (score >= 80) return '80-100'
-  if (score >= 65) return '65-79'
-  if (score >= 50) return '50-64'
-  if (score >= 35) return '35-49'
-  if (score >= 20) return '20-34'
-  return '0-19'
+  if (score >= 84) return '84-95'
+  if (score >= 76) return '76-83'
+  if (score >= 68) return '68-75'
+  if (score >= 59) return '59-67'
+  if (score >= 51) return '51-58'
+  return '40-50'
 }
 ```
 
-verdict는 5구간이므로 20 미만도 '0-34'로 처리합니다.
+점수는 40~95로 표시합니다 (PRD 6.0, FIX_4 [1]). flowLabel 경계는 옛 0~100 구간을 그대로 옮긴 값이라 라벨 문구는 바뀌지 않았습니다.
+
+verdict는 5구간이고 경계가 flowLabel과 다릅니다. 이쪽은 기계적 환산이 아니라 FIX_4 [1-3]에서 새로 정한 구간입니다.
 
 ```typescript
 function getVerdictRange(score: number): string {
-  if (score >= 80) return '80-100'
-  if (score >= 65) return '65-79'
-  if (score >= 50) return '50-64'
-  if (score >= 35) return '35-49'
-  return '0-34'
+  if (score >= 85) return '85-95'
+  if (score >= 75) return '75-84'
+  if (score >= 62) return '62-74'
+  if (score >= 50) return '50-61'
+  return '40-49'
 }
 ```
 

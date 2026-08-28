@@ -15,9 +15,12 @@
  *
  * ── 최소 높이 ──
  *
- * 점수를 그대로 높이 %로 쓰면 20점짜리는 12px밖에 안 됩니다. 흐름이
- * 있는지 없는지 안 보입니다. 0~100을 25~100%로 옮겨 낮은 날도 막대로
- * 보이게 하고, 대신 높낮이 차이는 그대로 남깁니다.
+ * 점수를 그대로 높이 %로 쓰면 낮은 날은 몇 px밖에 안 됩니다. 흐름이
+ * 있는지 없는지 안 보입니다. 표시 축(40~95)을 25~100%로 옮겨 낮은 날도
+ * 막대로 보이게 하고, 대신 높낮이 차이는 그대로 남깁니다.
+ *
+ * 축이 0~100에서 40~95로 바뀌었으므로(FIX_4 [1]) 여기 분모도 같이
+ * 옮겼습니다. 안 옮기면 모든 막대가 55% 위에 몰려 흐름이 평평해 보입니다.
  *
  * ── 당일 막대 ──
  *
@@ -28,15 +31,17 @@
 import { motion, useReducedMotion } from 'framer-motion'
 
 import { EASE } from '@/lib/motion'
+import { DISPLAY_MAX, DISPLAY_MIN } from '@/lib/saju/display-range'
 
 export interface DayBar {
   label: string
   score: number
 }
 
-/** 0~100 점수를 25~100% 높이로 (FIX_3 [9]-1) */
+/** 표시 축(40~95) 점수를 25~100% 높이로 (FIX_3 [9]-1, FIX_4 [1]) */
 export function barHeight(score: number): number {
-  return 25 + (Math.max(0, Math.min(100, score)) / 100) * 75
+  const clamped = Math.max(DISPLAY_MIN, Math.min(DISPLAY_MAX, score))
+  return 25 + ((clamped - DISPLAY_MIN) / (DISPLAY_MAX - DISPLAY_MIN)) * 75
 }
 
 /** 마지막 막대가 올라오기 시작하는 시각 (초) */

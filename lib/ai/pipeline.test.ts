@@ -105,8 +105,8 @@ describe('프롬프트 재료 (PRD 8.15)', () => {
   it('계산된 값만 담고 문장은 담지 않는다', () => {
     // AI는 문장만 생성하며 숫자와 판정을 만들지 않습니다
     expect(typeof material.fortune.examDayScore).toBe('number')
-    expect(material.fortune.examDayScore).toBeGreaterThanOrEqual(0)
-    expect(material.fortune.examDayScore).toBeLessThanOrEqual(100)
+    expect(material.fortune.examDayScore).toBeGreaterThanOrEqual(40)
+    expect(material.fortune.examDayScore).toBeLessThanOrEqual(95)
   })
 
   it('면접에서 설립일이 없으면 대체 조각이 들어간다 (PRD 8.7)', () => {
@@ -163,7 +163,7 @@ describe('D-DAY 구성과 시각 재료 (PRD 8.8, 8.16)', () => {
 
     expect(Object.keys(m.user.shipsin)).toHaveLength(5)
     expect(Object.keys(m.user.shipsinPosition)).toHaveLength(5)
-    expect(m.fortune.potentialScore).toBeGreaterThanOrEqual(70)
+    expect(m.fortune.potentialScore).toBeGreaterThanOrEqual(85)
     expect(m.fortune.potentialScore).toBeLessThanOrEqual(120)
     expect(m.fragments.shipsin).toBeTruthy()
     expect(m.fragments.pattern).toBeTruthy()

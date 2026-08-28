@@ -22,6 +22,7 @@ import {
   type Pillar,
   type Saju,
 } from './calculate'
+import { toDisplayScore } from './display-range'
 import { getRelation } from './elements'
 import { getShipsin, type Shipsin } from './shipsin'
 import {
@@ -44,6 +45,13 @@ import {
 function clamp(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)))
 }
+
+// ─── 표시 범위 매핑 (FIX_4 [1]) ───
+
+// 상수와 매핑 함수는 display-range.ts에 있습니다. 차트 컴포넌트가 축을
+// 그리려고 같은 상수를 쓰는데, 여기서 export하면 절기표까지 클라이언트
+// 번들에 딸려 들어갑니다.
+export { DISPLAY_MAX, DISPLAY_MIN, toDisplayScore } from './display-range'
 
 export function addDays(date: Date, days: number): Date {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
@@ -113,7 +121,7 @@ export function getExamDayScore(
   const base = calcDayScoreBase(saju, weak, pillar)
 
   const fit = getMethodFitScore(strong, type)
-  const score = clamp(base.score + fit / 20)
+  const score = toDisplayScore(clamp(base.score + fit / 20))
 
   return { score, relation: base.relation }
 }
@@ -162,7 +170,7 @@ export function getWeekFlow(
     result.push({
       date: toDateKey(target),
       dday: i,
-      score: clamp(score),
+      score: toDisplayScore(clamp(score)),
       relation,
     })
   }
@@ -235,7 +243,9 @@ export function getMonthFlow(saju: Saju, year: number): MonthFlow[] {
     const element = BRANCH_ELEMENT[branchIndex]
     const relation = getRelation(saju.dayStemElement, element)
 
-    const score = clamp(BASE_SCORE + DAY_SCORE_BY_RELATION[relation])
+    // 월별도 같은 축에 둡니다. 한 리포트 안에서 당일 운은 68인데 월별만
+    // 45로 나오면 AI가 두 축을 섞어 씁니다.
+    const score = toDisplayScore(clamp(BASE_SCORE + DAY_SCORE_BY_RELATION[relation]))
 
     result.push({
       month: m,
@@ -266,23 +276,40 @@ function relationToLevel(relation: Relation): number {
 
 // ─── 구간 매핑 (README) ───
 
-/** flowLabel 6구간 */
+/**
+ * flowLabel 6구간 (FIX_4 [1]).
+ *
+ * 옛 0~100 구간을 toDisplayScore로 그대로 옮긴 경계입니다.
+ * 라벨 문구는 바뀌지 않았고 경계만 새 축으로 옮겼습니다.
+ *
+ *   80→84 · 65→76 · 50→68 · 35→59 · 20→51
+ */
 export function getScoreRange(score: number): string {
-  if (score >= 80) return '80-100'
-  if (score >= 65) return '65-79'
-  if (score >= 50) return '50-64'
-  if (score >= 35) return '35-49'
-  if (score >= 20) return '20-34'
-  return '0-19'
+  if (score >= 84) return '84-95'
+  if (score >= 76) return '76-83'
+  if (score >= 68) return '68-75'
+  if (score >= 59) return '59-67'
+  if (score >= 51) return '51-58'
+  return '40-50'
 }
 
-/** verdict 5구간 — 20 미만도 '0-34'로 처리합니다 */
+/**
+ * verdict 5구간 (FIX_4 [1-3]).
+ *
+ * 이쪽은 기계적 환산이 아니라 새로 정한 구간입니다.
+ *
+ *   85~95  기운이 크게 밀어주는 날
+ *   75~84  흐름이 좋은 날
+ *   62~74  무난한 날
+ *   50~61  준비량이 그대로 나오는 날
+ *   40~49  컨디션 관리가 결과를 정하는 날
+ */
 export function getVerdictRange(score: number): string {
-  if (score >= 80) return '80-100'
-  if (score >= 65) return '65-79'
-  if (score >= 50) return '50-64'
-  if (score >= 35) return '35-49'
-  return '0-34'
+  if (score >= 85) return '85-95'
+  if (score >= 75) return '75-84'
+  if (score >= 62) return '62-74'
+  if (score >= 50) return '50-61'
+  return '40-49'
 }
 
 /** D-day 5구간 (말풍선, 리포트 구성 분기) */
@@ -304,12 +331,15 @@ export function getReportDdayRange(dday: number): ReportDdayRange {
   return 'dday'
 }
 
-/** PRD 7.2 캐릭터 표정 5단계 — 운 지수로 파일명을 정합니다 */
+/**
+ * PRD 7.2 캐릭터 표정 5단계 — 운 지수로 파일명을 정합니다.
+ * 구간은 verdict와 같습니다 (FIX_4 [1-4]).
+ */
 export function getCharacterFile(score: number): string {
-  if (score >= 80) return 'char-05'
-  if (score >= 65) return 'char-04'
-  if (score >= 50) return 'char-03'
-  if (score >= 35) return 'char-02'
+  if (score >= 85) return 'char-05'
+  if (score >= 75) return 'char-04'
+  if (score >= 62) return 'char-03'
+  if (score >= 50) return 'char-02'
   return 'char-01'
 }
 
@@ -391,9 +421,19 @@ export function getTimeSlots(
 
 // ─── PRD 8.7 잠재력 발휘 지수 ───
 
-/** 70~120으로 자릅니다. 당일 운(0-100)과 다른 축이라 clamp를 따로 씁니다 */
+/** 발휘 지수 하한 (FIX_4 [1-2]에서 70 → 85) */
+export const POTENTIAL_MIN = 85
+/** 발휘 지수 상한 */
+export const POTENTIAL_MAX = 120
+
+/**
+ * 85~120으로 자릅니다. 당일 운(40-95)과 다른 축이라 clamp를 따로 씁니다.
+ *
+ * 하한을 70에서 85로 올렸습니다 (FIX_4 [1-2]). 100 아래가 나와도
+ * "평소의 70퍼센트"보다 "평소의 85퍼센트"가 덜 나쁘게 읽힙니다.
+ */
 function clampPotential(n: number): number {
-  return Math.max(70, Math.min(120, Math.round(n)))
+  return Math.max(POTENTIAL_MIN, Math.min(POTENTIAL_MAX, Math.round(n)))
 }
 
 export interface PotentialInput {
@@ -459,9 +499,11 @@ export function getWeekFlowPattern(scores: number[]): WeekFlowPattern {
   const avg = scores.reduce((a, n) => a + n, 0) / scores.length
   const spread = max - min
 
-  if (avg < 45) return 'low-overall'
-  if (spread >= 30) return 'volatile'
-  if (spread <= 10) return 'flat'
+  // 임계값은 표시 축(40~95) 기준입니다. 옛 계산 축의 45·30·10을
+  // toDisplayScore로 옮긴 값입니다 (FIX_4 [1]).
+  if (avg < 65) return 'low-overall'
+  if (spread >= 17) return 'volatile'
+  if (spread <= 6) return 'flat'
 
   const peak = scores.indexOf(max)
   const third = scores.length / 3

@@ -2,6 +2,10 @@
  * 캐릭터와 유형 뱃지 정의 (PRD 7.1 ~ 7.4, 21.5)
  *
  * 캐릭터는 1종("합격이")이며 표정만 5단계로 바뀝니다. 결정 기준은 시험 당일 운 지수입니다.
+ *
+ * 구간은 표시 축(40~95)을 따릅니다 (FIX_4 [1-4]). char-01이 주먹을 쥔 응원
+ * 자세라 최하 구간인 40~49에 맞습니다. 구간 밖의 값이 들어와도 getCharacter가
+ * 가장 가까운 단계로 떨어지도록 아래에서 처리합니다.
  * 유형 뱃지는 강한 오행으로 결정되며 사용자 고유 정체성을 담당합니다.
  */
 
@@ -29,52 +33,58 @@ export interface CharacterStage {
 export const CHARACTER_STAGES: CharacterStage[] = [
   {
     stage: 5,
-    min: 80,
-    max: 100,
+    min: 85,
+    max: 95,
     file: '/character/char-05.png',
     expression: '초승달 눈, 만세, 반짝임',
     alt: '두 팔을 들어 만세하며 활짝 웃는 합격이',
   },
   {
     stage: 4,
-    min: 65,
-    max: 79,
+    min: 75,
+    max: 84,
     file: '/character/char-04.png',
     expression: '미소',
     alt: '손을 흔들며 미소 짓는 합격이',
   },
   {
     stage: 3,
-    min: 50,
-    max: 64,
+    min: 62,
+    max: 74,
     file: '/character/char-03.png',
     expression: '기본, 차분',
     alt: '차분하게 정면을 보고 있는 합격이',
   },
   {
     stage: 2,
-    min: 35,
-    max: 49,
+    min: 50,
+    max: 61,
     file: '/character/char-02.png',
     expression: '살짝 걱정, 처진 눈, 땀방울',
     alt: '살짝 걱정스러운 표정의 합격이',
   },
   {
     stage: 1,
-    min: 0,
-    max: 34,
+    min: 40,
+    max: 49,
     file: '/character/char-01.png',
     expression: '결의에 찬 눈, 주먹 쥔 파이팅 자세',
     alt: '주먹을 쥐고 함께 힘내자는 자세의 합격이',
   },
 ]
 
-/** 운 지수로 캐릭터를 고릅니다 */
+/**
+ * 운 지수로 캐릭터를 고릅니다.
+ *
+ * 구간을 40~95로 좁혔으므로 옛 값(예: DB에 남은 0~100 점수)이 들어오면
+ * find가 빈손으로 돌아옵니다. 범위 밖은 가장 가까운 끝 단계로 붙입니다.
+ */
 export function getCharacter(score: number): CharacterStage {
-  return (
-    CHARACTER_STAGES.find((c) => score >= c.min && score <= c.max) ??
-    CHARACTER_STAGES[2]
-  )
+  const hit = CHARACTER_STAGES.find((c) => score >= c.min && score <= c.max)
+  if (hit) return hit
+  return score > CHARACTER_STAGES[0].max
+    ? CHARACTER_STAGES[0]
+    : CHARACTER_STAGES[CHARACTER_STAGES.length - 1]
 }
 
 /** 대화창 아바타 (PRD 21.6 char-profile) */

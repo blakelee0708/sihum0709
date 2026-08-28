@@ -17,6 +17,8 @@ import {
   YAxis,
 } from 'recharts'
 
+import { DISPLAY_MAX, DISPLAY_MIN } from '@/lib/saju/display-range'
+
 import type { DayFlowLabeled } from '@/lib/content/assemble'
 import { scoreColor } from './score-color'
 
@@ -48,7 +50,9 @@ export default function WeekFlowChart({ data }: Props) {
               tickLine={false}
             />
             <YAxis
-              domain={[0, 100]}
+              // 표시 축이 40~95입니다 (FIX_4 [1]). 0~100으로 두면 선이
+              // 위쪽 절반에만 붙어 하루하루의 차이가 안 보입니다.
+              domain={[DISPLAY_MIN, DISPLAY_MAX]}
               tick={{ fontSize: 11, fill: 'var(--text-sub)' }}
               axisLine={false}
               tickLine={false}
