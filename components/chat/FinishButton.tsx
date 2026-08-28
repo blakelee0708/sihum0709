@@ -1,22 +1,22 @@
 'use client'
 
 /**
- * 대화 마지막 [결과 보기] 버튼 (FIX_3 [7]-1, [10]-1, [10]-2)
+ * 대화 마지막 [결과 보기] 버튼 (FIX_3 [7]-1, FIX_4 [2]-1)
  *
- * 무료 결과는 AI 호출 없이 계산과 조립만으로 만들어지므로 즉시 끝납니다.
- * 그런데 누르자마자 화면이 바뀌면 눌린 것을 인지할 틈이 없어, 눌렸는지
- * 확신이 안 서고 한 번 더 누르게 됩니다. 최소 0.8초는 점 세 개를
- * 보여줍니다.
+ * 누르면 글자가 점 세 개로 바뀌며 대기가 시작됩니다. 대기 연출과 시트는
+ * 호출부(app/start/page.tsx)가 맡고, 이 버튼은 눌렸다는 것만 알립니다.
+ * 예전에는 여기서 0.8초를 세고 넘겼는데, 이제 5초 연출이 그 자리를
+ * 대신하므로 곧바로 넘깁니다.
  *
- * 폭은 w-full이라 글자가 점으로 바뀌어도 줄지 않습니다. 높이는 최소
- * 44px로 고정돼 있어 세로도 흔들리지 않습니다.
+ * 점으로 바뀐 뒤에도 버튼은 그대로 남습니다. 대기 화면이 위를 덮지만,
+ * 덮이지 않는 순간에도 폭이 흔들리지 않아야 합니다. 폭은 w-full이라
+ * 글자가 점이 되어도 줄지 않고, 높이는 최소 44px로 고정돼 있습니다.
  */
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 
 import DotsLoader from '@/components/motion/DotsLoader'
-import { MIN_LOADING_MS } from '@/lib/motion'
 import { useOptionMotion } from '@/components/motion/motion-safe'
 import { useTap } from '@/components/motion/Pressable'
 
@@ -30,10 +30,9 @@ export default function FinishButton({ label, onFinish }: Props) {
   const tap = useTap()
   const optionMotion = useOptionMotion()
 
-  async function handleClick() {
+  function handleClick() {
     if (loading) return
     setLoading(true)
-    await new Promise((r) => setTimeout(r, MIN_LOADING_MS))
     onFinish()
   }
 

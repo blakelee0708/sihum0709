@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation'
 
 import GeneratingChat from '@/components/chat/GeneratingChat'
 import FailedState from './FailedState'
+import { waitingKey } from './ReportReadySheet'
 import { GENERATING_TIMEOUT_MS, type GeneratingVars } from '@/lib/content/chat-scripts'
 import type { Saju } from '@/lib/saju/calculate'
 import type { Element } from '@/lib/saju/constants'
@@ -50,6 +51,22 @@ export default function GeneratingState({
 }: Props) {
   const router = useRouter()
   const [timedOut, setTimedOut] = useState(zombie)
+
+  /**
+   * 기다리는 중이라고 적어 둡니다 (FIX_4 [2]-5).
+   *
+   * 완성되면 이 화면은 서버 렌더로 통째로 교체돼 사라집니다. 완성 순간을
+   * 여기서 알 수 없으므로, 완성된 리포트 쪽이 이 표시를 보고 시트를
+   * 띄웁니다.
+   */
+  useEffect(() => {
+    if (timedOut) return
+    try {
+      sessionStorage.setItem(waitingKey(reportId), '1')
+    } catch {
+      // 못 적으면 시트 없이 리포트가 바로 보입니다. 기능에는 지장 없습니다
+    }
+  }, [reportId, timedOut])
 
   useEffect(() => {
     if (timedOut) return

@@ -349,8 +349,43 @@ export const PAGE_EXIT_DURATION = 0.2
  *
  * 계산은 즉시 끝납니다. 그런데 누르자마자 화면이 바뀌면 눌린 것을
  * 인지할 틈이 없어, 눌렸는지 확신이 안 서고 한 번 더 누르게 됩니다.
+ *
+ * 결과 보기 버튼은 이 값을 쓰지 않습니다. 아래 대기 연출이 대신합니다.
  */
 export const MIN_LOADING_MS = 800
+
+/**
+ * 결과 전환 대기 (FIX_4 [2]-2).
+ *
+ * 계산은 즉시 끝나지만 의도적으로 기다립니다. 즉시 나오면 "미리 만들어
+ * 둔 것"으로 읽히고, 그 시간에 볼 것이 있으면 기다림이 아니라 콘텐츠가
+ * 됩니다.
+ *
+ * 재방문은 2초입니다. 두 번째부터는 같은 연출이 지루해집니다.
+ */
+export const RESULT_WAIT_FIRST_MS = 5000
+export const RESULT_WAIT_SEEN_MS = 2000
+
+/** 대기 중 문구가 바뀌는 간격 */
+export const WAIT_MESSAGE_INTERVAL_MS = 1500
+
+/** 대기 연출을 이미 봤는지 (localStorage) */
+export const SEEN_RESULT_KEY = 'seen_result'
+
+/**
+ * 바텀시트 (FIX_4 [2]-3).
+ *
+ * 지시받은 값 그대로입니다. stiffness 300 · damping 30이면 튕김 없이
+ * 한 번에 올라와 멈춥니다. 알림이라 흔들릴 이유가 없습니다.
+ */
+export const SHEET_SPRING = {
+  type: 'spring',
+  stiffness: 300,
+  damping: 30,
+} as const
+
+/** 이만큼 위로 끌면 넘어갑니다 */
+export const SHEET_DRAG_CONFIRM_PX = 60
 
 /**
  * 결과 화면 진입 순서 (FIX_3 [10]-4).

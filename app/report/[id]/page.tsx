@@ -12,6 +12,7 @@ import Disclaimer from '@/components/layout/Disclaimer'
 import ElementBar from '@/components/report/ElementBar'
 import FailedState from '@/components/report/FailedState'
 import GeneratingState from '@/components/report/GeneratingState'
+import ReportReadySheet from '@/components/report/ReportReadySheet'
 import KakaoShareButton from '@/components/report/KakaoShareButton'
 import MonthCalendar from '@/components/report/MonthCalendar'
 import ReportSection, { ReportBody } from '@/components/report/ReportSection'
@@ -200,6 +201,9 @@ export default async function ReportPage({
 
   return (
     <main className="mx-auto max-w-md pb-6">
+      {/* 대기 화면을 거쳐 들어왔으면 "완성됐어요" 시트가 먼저 올라옵니다 */}
+      <ReportReadySheet reportId={report.id} />
+
       <header className="px-screen pt-6">
         <h1 className="text-headline">{spec.title}</h1>
         <p className="mt-2 text-body">
