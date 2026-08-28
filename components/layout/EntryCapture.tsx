@@ -45,9 +45,13 @@ export default function EntryCapture() {
     if (code) saveCoupon(code)
 
     try {
-      // 첫 유입만 남깁니다. 두 번째부터는 덮어쓰지 않습니다
-      if (!sessionStorage.getItem(SOURCE_KEY)) {
-        sessionStorage.setItem(SOURCE_KEY, detectSource(params))
+      const found = detectSource(params)
+      const stored = sessionStorage.getItem(SOURCE_KEY)
+
+      // 첫 유입을 남기되, 앞서 그냥 들어왔다가(organic) 나중에 쿠폰 링크를
+      // 타고 온 경우에는 그쪽을 씁니다. 링크가 훨씬 분명한 신호입니다.
+      if (!stored || (stored === 'organic' && found !== 'organic')) {
+        sessionStorage.setItem(SOURCE_KEY, found)
       }
     } catch {
       // 저장을 못 하면 유입 기록만 포기합니다. 다른 기능에는 지장이 없습니다

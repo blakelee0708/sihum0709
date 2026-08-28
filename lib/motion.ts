@@ -388,6 +388,15 @@ export const SHEET_SPRING = {
 export const SHEET_DRAG_CONFIRM_PX = 60
 
 /**
+ * 시트가 출발하는 위치 (px).
+ *
+ * '100%'로 두면 안 됩니다. 같은 모션 값을 핸들 폭 계산에 쓰는데,
+ * 퍼센트 문자열은 숫자로 안 읽혀 NaN이 나옵니다. 시트 높이보다 넉넉히
+ * 큰 값이면 화면 밖에서 출발하는 효과는 같습니다.
+ */
+export const SHEET_ENTER_Y = 480
+
+/**
  * 결과 화면 진입 순서 (FIX_3 [10]-4).
  *
  *   0.0s  화면 진입

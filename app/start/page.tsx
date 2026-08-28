@@ -92,7 +92,11 @@ export default function StartPage() {
     <>
       <ChatThread onFinish={handleFinish} finishLabel="결과 보기" />
 
-      {phase === 'waiting' && <ResultWaiting messages={messages} />}
+      {/*
+        시트가 올라온 뒤에도 대기 화면을 남깁니다. 여기서 걷어내면 시트
+        뒤로 대화 화면이 다시 드러나 "아직 입력 중인가" 싶어집니다.
+      */}
+      {phase !== 'chat' && <ResultWaiting messages={messages} />}
 
       <BottomSheet
         open={phase === 'ready'}

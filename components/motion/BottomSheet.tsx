@@ -20,16 +20,10 @@
  * 대화 화면에 남는 사람이 생깁니다.
  */
 
-import { useEffect, useRef } from 'react'
-import {
-  AnimatePresence,
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useTransform,
-} from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 
-import { SHEET_DRAG_CONFIRM_PX, SHEET_SPRING } from '@/lib/motion'
+import { SHEET_DRAG_CONFIRM_PX, SHEET_ENTER_Y, SHEET_SPRING } from '@/lib/motion'
 import { useTap } from '@/components/motion/Pressable'
 
 interface Props {
@@ -52,14 +46,18 @@ export default function BottomSheet({
   const tap = useTap()
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  // 위로 끌어올린 정도. 핸들과 배경이 이 값을 따라갑니다
-  const y = useMotionValue(0)
-  const handleWidth = useTransform(y, [-SHEET_DRAG_CONFIRM_PX, 0], [64, 36], {
-    clamp: true,
-  })
-  const backdropOpacity = useTransform(y, [-SHEET_DRAG_CONFIRM_PX, 0], [0.6, 0.4], {
-    clamp: true,
-  })
+  /**
+   * 끌고 있는 중인지. 핸들이 이때만 넓어집니다.
+   *
+   * 처음에는 시트의 y를 useMotionValue로 들고 핸들 폭을 useTransform으로
+   * 뽑았습니다. 그러면 안 됩니다. framer는 style에 넘긴 모션 값을 "바깥이
+   * 통제하는 값"으로 보고 animate를 무시합니다. 그래서 시트가 480px 아래에
+   * 멈춘 채 올라오지 않았습니다. 브라우저에서 확인하고 찾았습니다.
+   *
+   * 드래그 판정은 onDragEnd가 주는 offset으로 충분하므로 모션 값을 쓰지
+   * 않습니다.
+   */
+  const [dragging, setDragging] = useState(false)
 
   // 열리면 버튼에 초점을 둡니다. 화면 낭독기 사용자가 시트가 떴다는 것을
   // 알고, 키보드 사용자는 엔터만 누르면 넘어갑니다
@@ -73,7 +71,7 @@ export default function BottomSheet({
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <motion.div
             className="absolute inset-0"
-            style={{ background: '#0F1729', opacity: shouldReduceMotion ? 0.4 : backdropOpacity }}
+            style={{ background: '#0F1729' }}
             initial={shouldReduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 0.4 }}
             exit={{ opacity: 0 }}
@@ -87,20 +85,21 @@ export default function BottomSheet({
             aria-label={title}
             className="relative w-full px-screen pb-8 pt-3"
             style={{
-              y,
               background: 'var(--surface)',
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
               boxShadow: '0 -8px 32px rgba(15, 23, 41, 0.16)',
             }}
-            initial={shouldReduceMotion ? false : { y: '100%' }}
+            initial={shouldReduceMotion ? false : { y: SHEET_ENTER_Y }}
             animate={{ y: 0 }}
-            exit={shouldReduceMotion ? undefined : { y: '100%' }}
+            exit={shouldReduceMotion ? undefined : { y: SHEET_ENTER_Y }}
             transition={SHEET_SPRING}
             drag={shouldReduceMotion ? false : 'y'}
+            onDragStart={() => setDragging(true)}
             dragConstraints={{ top: -SHEET_DRAG_CONFIRM_PX * 2, bottom: 0 }}
             dragElastic={{ top: 0.4, bottom: 0 }}
             onDragEnd={(_, info) => {
+              setDragging(false)
               // 충분히 끌었거나 세게 튕겼으면 넘어갑니다
               if (info.offset.y < -SHEET_DRAG_CONFIRM_PX || info.velocity.y < -500) {
                 onConfirm()
@@ -111,10 +110,10 @@ export default function BottomSheet({
               <motion.span
                 aria-hidden
                 className="h-1 rounded-full"
-                style={{
-                  width: shouldReduceMotion ? 36 : handleWidth,
-                  background: 'var(--border)',
-                }}
+                style={{ background: 'var(--border)' }}
+                initial={{ width: 36 }}
+                animate={{ width: shouldReduceMotion || !dragging ? 36 : 56 }}
+                transition={{ duration: 0.15 }}
               />
 
               {children}

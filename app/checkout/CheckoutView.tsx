@@ -43,8 +43,14 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
   const [companyName, setCompanyName] = useState<string | null>(null)
   const [agreed, setAgreed] = useState(false)
   const [coupon, setCoupon] = useState('')
-  /** 링크로 들어온 쿠폰이 실제로 유효한지 (FIX_4 [5]-2) */
-  const [couponFree, setCouponFree] = useState(false)
+  /**
+   * 쿠폰을 적용했을 때 실제 결제 금액 (FIX_4 [5]-2).
+   *
+   * null이면 유효한 쿠폰이 없어 정가입니다. 이 값이 화면의 결제 금액과
+   * 버튼 문구를 함께 정합니다. "결제 금액 0원"이라고 써놓고 버튼에는
+   * "3,900원 결제하기"가 있으면 그 자리에서 멈춥니다.
+   */
+  const [couponAmount, setCouponAmount] = useState<number | null>(null)
   const [phase, setPhase] = useState<Phase>('ready')
   const [error, setError] = useState<string | null>(null)
 
@@ -66,7 +72,7 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
 
     let alive = true
     checkCoupon(code).then((r) => {
-      if (alive && r.valid && r.free) setCouponFree(true)
+      if (alive && r.valid) setCouponAmount(r.amount)
     })
     return () => {
       alive = false
@@ -268,7 +274,16 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
             style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}
           >
             <span className="text-body">결제 금액</span>
-            <span className="text-score">{PRICE.toLocaleString()}원</span>
+            <span className="flex items-baseline gap-2">
+              {couponAmount !== null && couponAmount !== PRICE && (
+                <span className="text-label line-through" style={{ color: 'var(--text-sub)' }}>
+                  {PRICE.toLocaleString()}원
+                </span>
+              )}
+              <span className="text-score">
+                {(couponAmount ?? PRICE).toLocaleString()}원
+              </span>
+            </span>
           </div>
         </div>
 
@@ -300,7 +315,9 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
             value={coupon}
             onChange={(e) => {
               setCoupon(e.target.value.toUpperCase())
-              setCouponFree(false)
+              // 손으로 고치면 확인 전 상태로 되돌립니다. 서버가 결제 시점에
+              // 다시 확인하므로 화면이 앞서 나가면 안 됩니다
+              setCouponAmount(null)
             }}
             placeholder="쿠폰이 있으시면 입력해 주세요"
             className="mt-1 min-h-[48px] w-full px-4 text-body"
@@ -312,9 +329,14 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
             }}
           />
 
-          {couponFree && (
+          {couponAmount === 0 && (
             <p className="mt-2 text-body" style={{ color: 'var(--primary)' }}>
               무료권이 적용됐어요 · 결제 금액 0원
+            </p>
+          )}
+          {couponAmount !== null && couponAmount > 0 && (
+            <p className="mt-2 text-body" style={{ color: 'var(--primary)' }}>
+              쿠폰이 적용됐어요 · {couponAmount.toLocaleString()}원
             </p>
           )}
         </div>
@@ -353,7 +375,9 @@ export default function CheckoutView({ queryId }: { queryId: string | null }) {
             ? '결제 처리 중'
             : phase === 'generating'
               ? '리포트를 만드는 중'
-              : `${PRICE.toLocaleString()}원 결제하기`}
+              : couponAmount === 0
+                ? '무료로 받기'
+                : `${(couponAmount ?? PRICE).toLocaleString()}원 결제하기`}
         </button>
 
         <p className="pb-8 text-label" style={{ color: 'var(--text-sub)' }}>

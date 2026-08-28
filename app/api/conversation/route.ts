@@ -151,14 +151,26 @@ async function load(reportId: string, userId: string) {
   return { report, query }
 }
 
-async function readConversation(reportId: string) {
+/**
+ * 대화 기록을 읽습니다.
+ *
+ * ok가 false면 테이블 자체를 못 읽은 것입니다(마이그레이션 007 미적용 등).
+ * 이때는 답변하지 않고 물러납니다. 저장이 안 되면 누적 원가가 매 턴 0으로
+ * 돌아가 상한이 사라지고, 사용자는 끝없이 물어볼 수 있게 됩니다.
+ * 못 세는 것보다 안 여는 것이 낫습니다.
+ */
+async function readConversation(
+  reportId: string
+): Promise<{ ok: boolean; row: ConversationRow | null }> {
   const supabase = await createClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('conversations')
     .select('id, messages, total_cost, turn_count')
     .eq('report_id', reportId)
     .maybeSingle<ConversationRow>()
-  return data ?? null
+
+  if (error) return { ok: false, row: null }
+  return { ok: true, row: data ?? null }
 }
 
 /** 재진입 — 지금까지의 대화와 남은 기운을 돌려줍니다 (FIX_4 [3]-10) */
@@ -180,7 +192,9 @@ export async function GET(req: NextRequest) {
   if (!loaded) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
   const free = buildFreeResult(toUserInput(loaded.query))
-  const row = await readConversation(reportId)
+  const { ok, row } = await readConversation(reportId)
+
+  if (!ok) return NextResponse.json({ error: 'not ready' }, { status: 503 })
 
   return NextResponse.json(viewOf(row, free.dday, loaded.report.report_type))
 }
@@ -225,7 +239,9 @@ export async function POST(req: NextRequest) {
   const free = buildFreeResult(toUserInput(query))
   const reportType = report.report_type === '면접' ? '면접' : '필기'
 
-  const row = await readConversation(reportId)
+  const { ok, row } = await readConversation(reportId)
+  if (!ok) return NextResponse.json({ error: 'not ready' }, { status: 503 })
+
   const state = stateOf(row)
 
   // 기운이 다 떨어졌으면 답하지 않습니다. 최소 4턴은 상한을 넘겨도 답합니다
@@ -286,10 +302,22 @@ export async function POST(req: NextRequest) {
     turn_count: nextState.turnCount,
   }
 
-  if (row) {
-    await service.from('conversations').update(saved).eq('id', row.id)
-  } else {
-    await service.from('conversations').insert(saved)
+  const write = row
+    ? await service.from('conversations').update(saved).eq('id', row.id)
+    : await service.from('conversations').insert(saved)
+
+  if (write.error) {
+    // 답변은 이미 만들어졌지만 원가를 세지 못했습니다. 다음 턴이 다시 0에서
+    // 시작하면 상한이 없는 것과 같으므로, 이번 답변만 전하고 대화를 닫습니다.
+    return NextResponse.json({
+      reply: turn.text,
+      messages,
+      gauge: 0,
+      exhausted: true,
+      questions,
+      askedIds: askedFrom(messages),
+      mock: turn.mock,
+    })
   }
 
   return NextResponse.json({
