@@ -26,6 +26,11 @@
  *
  * 나머지가 다 오른 뒤 한 박자 쉬고 스프링으로 올라옵니다. 마지막이
  * 시험 당일이라 시선이 그쪽에서 멈춰야 합니다.
+ *
+ * ── 색과 모서리 (FIX_5 [5]) ──
+ *
+ * 당일만 강조 파랑(#2E5BD9), 나머지는 #D3DEF5입니다. 모서리는 위쪽만
+ * 둥글게 깎습니다. 아래까지 둥글면 바닥선에서 떠 보입니다.
  */
 
 import { motion, useReducedMotion } from 'framer-motion'
@@ -53,17 +58,18 @@ export default function WeekFlowBars({ data }: { data: DayBar[] }) {
 
   return (
     <div
-      className="flex h-[60px] items-end gap-[5px]"
+      className="flex h-[48px] items-end gap-[5px]"
       role="img"
-      aria-label={`시험 전 7일 기운 흐름 예시. 당일 ${data[lastIndex]?.score ?? 0}점`}
+      aria-label={`시험 D-7 내 기운 흐름 예시. 당일 ${data[lastIndex]?.score ?? 0}점`}
     >
       {data.map((d, i) => {
         const isToday = i === lastIndex
         const height = `${barHeight(d.score)}%`
 
+        // 당일만 강조 파랑입니다. 나머지는 한 단계 연하게 둡니다 (FIX_5 [5])
         const style = {
-          background: isToday ? '#378ADD' : '#B5D4F4',
-          borderRadius: '4px 4px 2px 2px',
+          background: isToday ? '#2E5BD9' : '#D3DEF5',
+          borderRadius: '4px 4px 1px 1px',
         }
 
         if (shouldReduceMotion) {
