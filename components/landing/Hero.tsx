@@ -2,7 +2,8 @@
  * 홈 히어로 (PRD 14.4, FIX_5 [2])
  *
  * 제목 → 합격이와 결과 카드 → 시작 버튼 순으로 0.08초씩 밀어 올립니다
- * (FIX_5 [7]-1). 등장은 Rise가, 합격이의 숨쉬기는 CSS가 맡습니다.
+ * (FIX_5 [7]-1). 등장은 Rise가, 합격이가 튕기며 들어오는 것과 숨쉬기는
+ * CSS가 맡습니다(globals.css .hero-pop / .hero-body).
  *
  * ── 부제를 바꾼 이유 ──
  *
@@ -103,15 +104,21 @@ export default function Hero() {
               'radial-gradient(circle, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.6) 42%, rgba(255,255,255,0) 70%)',
           }}
         >
-          <Image
-            src={CHARACTER_HERO}
-            alt={`손을 흔드는 ${CHARACTER_NAME}`}
-            width={188}
-            height={188}
-            priority
-            className="hero-body"
-            style={{ width: 94, height: 'auto', display: 'block' }}
-          />
+          {/*
+            등장(hero-pop)과 숨쉬기(hero-body)를 같은 요소에 걸면 animation
+            속성을 두고 다퉈 한쪽만 재생됩니다. 바깥에 한 겹 둘러 나눕니다.
+          */}
+          <span className="hero-pop" style={{ display: 'block' }}>
+            <Image
+              src={CHARACTER_HERO}
+              alt={`손을 흔드는 ${CHARACTER_NAME}`}
+              width={188}
+              height={188}
+              priority
+              className="hero-body"
+              style={{ width: 94, height: 'auto', display: 'block' }}
+            />
+          </span>
         </div>
 
         <BezelCard

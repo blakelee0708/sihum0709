@@ -25,17 +25,18 @@ import WeekFlowBars from './WeekFlowBars'
 /**
  * D-7부터 당일까지 8일. 마지막이 시험 당일입니다.
  * 표시 축은 40~95입니다 (FIX_4 [1]). 당일이 가장 높게 끝나야 그래프가
- * "그날을 위해 올라간다"로 읽힙니다.
+ * "그날을 위해 올라간다"로 읽힙니다. 값이 좁은 폭에 몰리면 막대가 다
+ * 비슷해 보여 흐름이 안 읽히므로 넓게 벌려 둡니다.
  */
 const WEEK_FLOW = [
   { label: 'D-7', score: 70 },
-  { label: '', score: 61 },
+  { label: '', score: 52 },
+  { label: '', score: 78 },
+  { label: '', score: 62 },
   { label: '', score: 74 },
-  { label: '', score: 67 },
-  { label: '', score: 76 },
-  { label: '', score: 64 },
-  { label: '', score: 72 },
-  { label: '당일', score: 90 },
+  { label: '', score: 55 },
+  { label: '', score: 68 },
+  { label: '당일', score: 92 },
 ]
 
 /** 시험 당일 운 예시 */

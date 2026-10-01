@@ -74,6 +74,12 @@ export default function Marquee() {
         {/*
           카드에 걸터앉은 합격이. 발끝이 카드 안쪽으로 내려와야 "앉아 있다"로
           읽힙니다. 카드 위 여백을 112px로 크게 잡아 둔 것이 이 자리입니다.
+
+          top은 시안의 -78px이 아니라 -62px입니다. 시안대로 두면 발끝이
+          카드 위 1px에 걸쳐 공중에 뜬 것처럼 보입니다. 지금 쓰는 hihi.png는
+          투명 여백이 거의 없어(알파 경계가 캔버스의 1.5~98.6%) 이미지 높이가
+          곧 캐릭터 높이이기 때문입니다. 지시서가 요구한 "발끝이 20퍼센트쯤
+          내려온" 상태가 되도록 16px 내렸습니다.
         */}
         <Image
           src="/character/hihi.png"
@@ -83,7 +89,7 @@ export default function Marquee() {
           style={{
             position: 'absolute',
             right: 20,
-            top: -78,
+            top: -62,
             width: 84,
             height: 'auto',
             display: 'block',

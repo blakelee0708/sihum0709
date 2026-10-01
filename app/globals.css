@@ -364,3 +364,37 @@ body {
     display: none;
   }
 }
+
+/*
+ * 히어로 합격이 진입 (FIX_5 [7]-2).
+ *
+ * 전에는 framer-motion 스프링(damping 18)으로 살짝 튕기며 들어왔습니다.
+ * 랜딩 등장을 CSS로 통일하면서 같은 느낌을 키프레임으로 옮겼습니다.
+ * 0.88에서 시작해 1.03까지 지나쳤다가 1로 내려앉습니다.
+ *
+ * 한 번만 재생하고 끝난 뒤에는 숨쉬기(.hero-body)가 이어받습니다.
+ */
+.landing .hero-pop {
+  animation: hero-pop 0.62s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes hero-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.88);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing .hero-pop {
+    animation: none;
+  }
+}
