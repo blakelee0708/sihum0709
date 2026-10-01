@@ -366,35 +366,91 @@ body {
 }
 
 /*
- * 히어로 합격이 진입 (FIX_5 [7]-2).
+ * 히어로 합격이 등장 (FIX_5 [2]-2 개정)
  *
- * 전에는 framer-motion 스프링(damping 18)으로 살짝 튕기며 들어왔습니다.
- * 랜딩 등장을 CSS로 통일하면서 같은 느낌을 키프레임으로 옮겼습니다.
- * 0.88에서 시작해 1.03까지 지나쳤다가 1로 내려앉습니다.
+ * 합격이가 카드 옆이 아니라 카드 뒤에서 올라와 내다봅니다. 옆에 두면
+ * 카드 폭이 좁아져 정보가 빽빽해집니다.
  *
- * 한 번만 재생하고 끝난 뒤에는 숨쉬기(.hero-body)가 이어받습니다.
+ * 순서가 이 연출의 전부입니다.
+ *
+ *   0.05s  카드가 아래에서 떠오름 (18px, 0.7초)
+ *   0.35s  후광이 서서히 켜짐 (0.6초)
+ *   0.45s  합격이가 카드 뒤에서 올라옴 (105% → 0, 0.95초, 끝에서 살짝 튕김)
+ *   1.6s~  제자리에서 3.2초 주기로 4px 숨쉬기
+ *
+ * 카드가 먼저 자리를 잡아야 "그 뒤에서 올라온다"로 읽힙니다. 동시에
+ * 시작하면 둘이 따로 노는 것처럼 보입니다.
+ *
+ * `.js`가 붙기 전에는 숨김 규칙이 적용되지 않습니다. 스크립트가 늦거나
+ * 꺼져 있어도 최종 상태가 그대로 보입니다 (FIX_5 [7]-1).
+ * `.go`는 RiseEffects가 마운트 150ms 뒤에 붙입니다.
  */
-.landing .hero-pop {
-  animation: hero-pop 0.62s cubic-bezier(0.32, 0.72, 0, 1) both;
+.landing.js .hero-card {
+  opacity: 0;
+  transform: translateY(18px);
 }
 
-@keyframes hero-pop {
-  0% {
-    opacity: 0;
-    transform: translateY(14px) scale(0.88);
-  }
-  70% {
+.landing.js .hero-halo {
+  opacity: 0;
+}
+
+.landing.js .hero-char {
+  transform: translateY(105%);
+}
+
+.landing .go .hero-card {
+  animation: hero-card 0.7s cubic-bezier(0.32, 0.72, 0, 1) 0.05s forwards;
+}
+
+.landing .go .hero-halo {
+  animation: hero-halo 0.6s ease-out 0.35s forwards;
+}
+
+.landing .go .hero-char {
+  animation:
+    hero-rise 0.95s cubic-bezier(0.34, 1.56, 0.64, 1) 0.45s forwards,
+    hero-idle 3.2s ease-in-out 1.6s infinite;
+}
+
+@keyframes hero-card {
+  to {
     opacity: 1;
-    transform: translateY(0) scale(1.03);
+    transform: none;
   }
+}
+
+@keyframes hero-halo {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes hero-rise {
+  from {
+    transform: translateY(105%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-idle {
+  0%,
   100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
   }
 }
 
+/* 움직임을 줄여달라고 했으면 올라온 최종 상태로 바로 보여줍니다 */
 @media (prefers-reduced-motion: reduce) {
-  .landing .hero-pop {
+  .landing.js .hero-card,
+  .landing.js .hero-halo,
+  .landing.js .hero-char {
+    opacity: 1;
+    transform: none;
     animation: none;
   }
 }

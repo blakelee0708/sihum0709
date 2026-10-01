@@ -9,6 +9,10 @@
  * 랜딩은 비로그인 화면이라 계산할 입력이 없습니다. 실제 값처럼 보이되
  * 실제 값이 아니므로 이 파일 안에서만 쓰는 상수로 둡니다.
  *
+ * 카드가 화면 폭으로 넓어지면서(FIX_5 [2]-2 개정) 타일 안 여백과 글자
+ * 크기를 함께 키웠습니다. 좁은 카드 기준 값을 그대로 두면 넓은 카드
+ * 안에서 내용이 왼쪽에 몰려 보입니다.
+ *
  * ── "7일 바이오리듬"이라고 쓰지 않습니다 ──
  *
  * 이름을 "시험 D-7 내 기운 흐름"으로 통일했습니다 (FIX_5 [2]-2).
@@ -35,11 +39,11 @@ export default function HeroResultCard() {
       <div
         style={{
           ...TILE,
-          padding: '11px 12px',
+          padding: '12px 14px',
           marginBottom: 6,
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          gap: 14,
         }}
       >
         <div style={{ flex: '0 0 auto' }}>
@@ -49,7 +53,7 @@ export default function HeroResultCard() {
           <p
             style={{
               margin: 0,
-              fontSize: 28,
+              fontSize: 32,
               fontWeight: 800,
               lineHeight: 1,
               letterSpacing: '-0.03em',
@@ -64,7 +68,7 @@ export default function HeroResultCard() {
           <p
             style={{
               margin: '0 0 3px',
-              fontSize: 10.5,
+              fontSize: 11,
               color: 'var(--ink-sub)',
               textAlign: 'right',
               whiteSpace: 'nowrap',
@@ -79,31 +83,31 @@ export default function HeroResultCard() {
           */}
           <svg
             width="100%"
-            viewBox="0 0 110 34"
+            viewBox="0 0 110 30"
             role="img"
             style={{ display: 'block' }}
           >
             <title>시험 D-7 내 기운 흐름 예시</title>
             <path
-              d="M4 17 C11 17 11 23 18 23 C25 23 25 14 33 14 C40 14 40 19.5 48 19.5 C55 19.5 55 15.5 62 15.5 C69 15.5 69 21 77 21 C84 21 84 17.8 91 17.8 C98 17.8 98 5.5 106 5.5"
+              d="M4 15 C11 15 11 21 18 21 C25 21 25 12 33 12 C40 12 40 17.5 48 17.5 C55 17.5 55 13.5 62 13.5 C69 13.5 69 19 77 19 C84 19 84 15.8 91 15.8 C98 15.8 98 4.5 106 4.5"
               fill="none"
               stroke="#2E5BD9"
-              strokeWidth="2"
+              strokeWidth="1.8"
               strokeLinecap="round"
             />
-            <circle cx="106" cy="5.5" r="3.4" fill="#2E5BD9" />
+            <circle cx="106" cy="4.5" r="3" fill="#2E5BD9" />
           </svg>
         </div>
       </div>
 
       {/* 아래 타일 둘 — 찍기 번호와 행운 색 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-        <div style={{ ...TILE, padding: '10px 12px' }}>
+        <div style={{ ...TILE, padding: '11px 14px' }}>
           <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--ink-sub)' }}>
-            찍기 번호
+            행운의 찍기 번호
           </p>
           <p style={{ margin: 0, lineHeight: 1 }}>
-            <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--ink)' }}>
+            <span style={{ fontSize: 26, fontWeight: 800, color: 'var(--ink)' }}>
               {LUCKY_NUMBER}
             </span>
             <span style={{ fontSize: 12, color: 'var(--ink-sub)', marginLeft: 2 }}>
@@ -112,8 +116,8 @@ export default function HeroResultCard() {
           </p>
         </div>
 
-        <div style={{ ...TILE, padding: '10px 12px' }}>
-          <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--ink-sub)' }}>
+        <div style={{ ...TILE, padding: '11px 14px' }}>
+          <p style={{ margin: '0 0 7px', fontSize: 11, color: 'var(--ink-sub)' }}>
             행운 색
           </p>
           <span
@@ -123,19 +127,19 @@ export default function HeroResultCard() {
               gap: 5,
               background: '#FFFFFF',
               borderRadius: 999,
-              padding: '3px 9px 3px 4px',
+              padding: '3px 10px 3px 4px',
             }}
           >
             <span
               aria-hidden
               style={{
-                width: 13,
-                height: 13,
+                width: 14,
+                height: 14,
                 borderRadius: '50%',
                 background: '#26487F',
               }}
             />
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
               남색
             </span>
           </span>
