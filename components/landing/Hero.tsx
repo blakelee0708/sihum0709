@@ -1,94 +1,141 @@
 /**
- * 홈 히어로 (PRD 14.4, FIX_3 [6]-1, [6]-2, [7]-3)
+ * 홈 히어로 (PRD 14.4, FIX_5 [2])
  *
- * 버튼은 스크롤 없이 보이는 위치에 둡니다.
- * 문구를 "합격이에게 내 시험운 물어보기"로 해서 다음 화면에 무엇이 나올지
- * 예고합니다. "이야기하기"만으로는 무엇을 이야기하는지가 빠집니다.
+ * 제목 → 합격이와 결과 카드 → 시작 버튼 순으로 0.08초씩 밀어 올립니다
+ * (FIX_5 [7]-1). 등장은 Rise가, 합격이의 숨쉬기는 CSS가 맡습니다.
  *
- * 버튼 바로 위 "내 시험운은 어떨까?"는 설명이 아니라 질문입니다.
- * 위쪽 문구가 서비스가 무엇을 하는지 말한다면, 이 줄은 그래서 지금
- * 누르라는 신호입니다. 버튼과 한 덩어리로 읽히도록 간격을 좁게 둡니다.
+ * ── 부제를 바꾼 이유 ──
  *
- * ── 진입 스태거 ──
+ * "생년월일과 시험 날짜로 그날의 흐름을 봅니다"는 입력을 설명합니다.
+ * 사용자가 알고 싶은 것은 무엇을 받는지입니다. 찍기 번호와 면접 질문을
+ * 앞에 둡니다 (FIX_5 [2]-1).
  *
- * 캐릭터 → 제목 → 설명 → 질문 → 버튼 순으로 0.08초씩 밀어 올립니다.
- * 진입 애니메이션이 없으면 페이지에 들어왔을 때 모든 것이 이미 떠 있어
- * 아무 일도 일어나지 않은 화면처럼 보입니다. 값은 lib/motion.ts에
- * 모여 있습니다.
+ * ── 합격이와 카드를 나란히 ──
  *
- * 캐릭터만 다른 값을 씁니다. damping 18이라 도착할 때 살짝 튕깁니다.
+ * 전에는 캐릭터가 폭 280px로 혼자 한 줄을 차지했습니다. 첫 화면에서
+ * 버튼까지 내려가려면 스크롤이 필요했습니다. 94px로 줄여 결과 카드와
+ * 나란히 두면 제목·결과·버튼이 한 화면에 들어옵니다.
+ *
+ * 서버 컴포넌트입니다. 움직이는 부분(버튼 계측, 숫자 카운트업)만
+ * 클라이언트 컴포넌트로 들어갑니다.
  */
 
-'use client'
+import Image from 'next/image'
 
-import { motion, useReducedMotion } from 'framer-motion'
-
-import HeroCharacter from './HeroCharacter'
-import { MotionLink, useTap } from '@/components/motion/Pressable'
-import ShineOverlay from '@/components/motion/ShineOverlay'
-import { BREATHE, heroCharacterItem, heroContainer, heroItem } from '@/lib/motion'
-import { track } from '@/lib/analytics'
+import BezelCard from './BezelCard'
+import HeroResultCard from './HeroResultCard'
+import Rise from './Rise'
+import StartCta from './StartCta'
+import { CHARACTER_HERO, CHARACTER_NAME } from '@/lib/content/characters'
 
 export default function Hero() {
-  const tap = useTap()
-  const shouldReduceMotion = useReducedMotion()
-
-  // 움직임을 줄여달라고 한 경우 진입 애니메이션 없이 최종 상태로 그립니다
-  const stagger = shouldReduceMotion
-    ? {}
-    : { variants: heroContainer, initial: 'hidden' as const, animate: 'show' as const }
-  const item = shouldReduceMotion ? {} : { variants: heroItem }
-  const character = shouldReduceMotion ? {} : { variants: heroCharacterItem }
-
   return (
-    <motion.section className="px-screen pt-6 text-center" {...stagger}>
-      <motion.div {...character}>
-        <HeroCharacter />
-      </motion.div>
-
-      <motion.h1 className="mt-2 text-headline" {...item}>
-        시험 보는 날,
-        <br />내 기운은 어떨까?
-      </motion.h1>
-
-      <motion.p className="mt-3 text-body" style={{ color: 'var(--text-sub)' }} {...item}>
-        생년월일과 시험 날짜로
-        <br />
-        그날의 흐름을 봅니다
-      </motion.p>
-
-      <motion.p className="mt-6 text-body font-semibold" {...item}>
-        내 시험운은 어떨까?
-      </motion.p>
-
-      <motion.div {...item} className="mt-2">
-        <MotionLink
-          href="/start"
-          onClick={() => track('landing_cta_click')}
-          whileTap={tap}
-          // 숨쉬기는 버튼 자신이, 진입은 감싼 div가 맡습니다. 한 요소에
-          // 둘을 걸면 같은 scale을 두고 다툽니다
-          animate={shouldReduceMotion ? undefined : BREATHE.animate}
-          transition={shouldReduceMotion ? undefined : BREATHE.transition}
-          className="relative flex min-h-[52px] w-full items-center justify-center overflow-hidden text-body font-semibold text-white"
+    <>
+      <Rise>
+        <h1
           style={{
-            background: 'var(--button)',
-            borderRadius: 'var(--radius-button)',
-            boxShadow: 'var(--shadow-button)',
+            margin: '0 0 16px',
+            padding: '0 22px',
+            textAlign: 'center',
+            fontSize: 30,
+            fontWeight: 800,
+            lineHeight: 1.2,
+            letterSpacing: '-0.035em',
+            color: 'var(--ink)',
           }}
         >
-          합격이에게 내 시험운 물어보기
-          <ShineOverlay />
-        </MotionLink>
-      </motion.div>
+          시험 보는 날,
+          <br />내 기운은 어떨까?
+        </h1>
 
-      <motion.p
-        className="mt-2 text-label"
-        style={{ color: 'var(--text-sub)' }}
-        {...item}
+        <p
+          style={{
+            margin: '0 0 8px',
+            padding: '0 20px',
+            textAlign: 'center',
+            fontSize: 13,
+            lineHeight: 1.65,
+            color: 'var(--ink-sub)',
+          }}
+        >
+          시험 당일, 행운의 찍기 번호를
+          <br />
+          본인 사주로 알려드려요
+        </p>
+
+        <p
+          style={{
+            margin: '0 0 26px',
+            padding: '0 20px',
+            textAlign: 'center',
+            fontSize: 13,
+            lineHeight: 1.65,
+            color: 'var(--ink-sub)',
+          }}
+        >
+          내 기운, 사주오행에 따라 받을 수 있는
+          <br />
+          면접 질문을 알려드려요
+        </p>
+      </Rise>
+
+      <Rise
+        delay={0.08}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 12px',
+          marginBottom: 30,
+        }}
       >
-        1분이면 끝나요 · 로그인 없이
-      </motion.p>
-    </motion.section>
+        {/*
+          후광. 캐릭터 뒤에 흰 원을 깔아 배경에서 떼어 놓습니다.
+          그라데이션이라 가장자리가 보이지 않습니다.
+        */}
+        <div
+          style={{
+            flex: '0 0 106px',
+            height: 166,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            background:
+              'radial-gradient(circle, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.6) 42%, rgba(255,255,255,0) 70%)',
+          }}
+        >
+          <Image
+            src={CHARACTER_HERO}
+            alt={`손을 흔드는 ${CHARACTER_NAME}`}
+            width={188}
+            height={188}
+            priority
+            className="hero-body"
+            style={{ width: 94, height: 'auto', display: 'block' }}
+          />
+        </div>
+
+        <BezelCard
+          radius={24}
+          style={{ flex: 1, minWidth: 0 }}
+          innerStyle={{ overflow: 'hidden' }}
+        >
+          <HeroResultCard />
+        </BezelCard>
+      </Rise>
+
+      <Rise delay={0.16} style={{ padding: '0 20px' }}>
+        <StartCta place="hero" />
+        <p
+          style={{
+            margin: '11px 0 0',
+            textAlign: 'center',
+            fontSize: 12,
+            color: 'var(--ink-sub)',
+          }}
+        >
+          1분이면 끝나요 · 로그인 없이
+        </p>
+      </Rise>
+    </>
   )
 }
