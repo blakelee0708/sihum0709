@@ -334,3 +334,33 @@ body {
     transition: none;
   }
 }
+
+/*
+ * 마퀴를 멈출 때 (FIX_5 [3]-3, [7]-3).
+ *
+ * 전역 규칙이 애니메이션만 끄면 목록의 절반이 화면 밖에 남아 무슨 말인지
+ * 알 수 없습니다. 멈춘 자리에서는 줄바꿈 목록으로 바꾸고, 이음매를 메우려고
+ * 둔 두 번째 벌은 숨깁니다. 같은 내용이 두 번 보이면 안 됩니다.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .landing .marquee-mask {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .landing .marquee-row {
+    animation: none !important;
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 0 16px;
+  }
+
+  .landing .marquee-row .pill {
+    margin-bottom: 6px;
+  }
+
+  .landing .marquee-row .dup {
+    display: none;
+  }
+}

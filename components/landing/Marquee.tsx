@@ -1,144 +1,206 @@
-'use client'
-
 /**
- * 세상 모든 시험 — 흐르는 목록 (FIX_3 [5])
+ * 세상에 존재하는 모든 시험 (FIX_5 [3])
  *
- * 히어로 바로 아래, 차별점 카드 위에 둡니다. 시작 버튼을 누르지 않고
- * 스크롤한 사람에게 "여기가 뭐 하는 곳인지" 먼저 보여주는 자리입니다.
- * 카드로 설명하기 전에 취급 범위를 눈으로 훑게 합니다.
+ * 시작 버튼을 누르지 않고 스크롤한 사람에게 "여기가 뭐 하는 곳인지"
+ * 보여주는 자리입니다. 시험 이름만 흘리면 취급 범위만 전해지므로,
+ * "시험 이름 | 결과 조각"으로 바꿔 무엇을 받는지까지 같이 보여줍니다.
  *
  * ── 끊김 없이 흐르게 하는 세 가지 ──
  *
  *   목록을 두 번 반복해야 이어집니다. 한 벌만 두고 -100%까지 밀면
- *   뒤쪽이 비어 있어 끊깁니다. 두 벌을 두고 -50%까지만 밀면 두 번째
- *   벌이 첫 번째 벌 자리에 정확히 겹쳐 되돌아온 것을 알 수 없습니다.
+ *   뒤쪽이 비어 끊깁니다. 두 벌을 두고 -50%까지만 밀면 두 번째 벌이
+ *   첫 번째 벌 자리에 정확히 겹쳐 되돌아온 것을 알 수 없습니다.
  *
- *   maskImage로 양끝을 흐리게 합니다. 없으면 화면 경계에서 글자가
- *   잘려 나가는 것이 보입니다.
+ *   간격을 gap이 아니라 각 항목의 margin-right로 줍니다. gap이면 마지막
+ *   항목 뒤에만 간격이 없어 이음매가 그만큼 좁아지고, -50%로 되돌아오는
+ *   순간 튑니다.
  *
- *   width: max-content가 있어야 flex 자식이 줄어들지 않습니다. 없으면
- *   컨테이너 폭에 맞춰 압축돼 목록이 겹칩니다.
+ *   maskImage로 양끝을 흐리게 합니다. 없으면 화면 경계에서 글자가 잘려
+ *   나가는 것이 보입니다.
  *
- * ── 두 줄의 방향과 속도를 다르게 ──
+ * ── 면접은 전부 "예상 질문"입니다 ──
  *
- * 같은 방향 같은 속도면 두 줄이 한 덩어리로 붙어 보입니다.
- * 1행 28초 왼쪽, 2행 34초 오른쪽입니다.
+ * 컨디션·집중 주의·D-3 같은 항목은 넣지 않습니다. 서비스가 실제로 주는
+ * 것만 적어야 합니다 (FIX_5 [3]-3).
  *
- * ── prefers-reduced-motion ──
+ * ── 멈춤 ──
  *
- * 애니메이션을 끄고 줄바꿈으로 전부 표시합니다. 멈춘 마퀴는 목록의
- * 절반이 화면 밖에 남아 무슨 말인지 알 수 없게 됩니다.
+ * 손가락을 대거나 마우스를 올리면 멈춥니다(globals.css .marquee-mask).
+ * 움직임 줄이기 설정에서는 전역 규칙이 애니메이션 자체를 끕니다.
+ * 멈춘 마퀴는 목록의 절반이 화면 밖에 남으므로, 그때는 줄바꿈 목록으로
+ * 갈아끼웁니다.
  */
 
-import { useReducedMotion } from 'framer-motion'
+import Image from 'next/image'
 
-import { RevealItem, RevealList } from '@/components/motion/RevealList'
+import BezelCard from './BezelCard'
+import Rise from './Rise'
+import { CHARACTER_NAME } from '@/lib/content/characters'
 
-const ROW_1 = ['공무원 시험', '자격증', '대기업 면접', '수능', '오디션']
-const ROW_2 = ['편입', '어학', '승진 시험', '모의고사', '실기']
+interface Item {
+  /** 시험 이름 */
+  exam: string
+  /** 그 시험에서 받는 결과 한 조각 */
+  result: string
+}
+
+const ROW_1: Item[] = [
+  { exam: '경찰공무원', result: '행운의 찍기 번호 3번' },
+  { exam: '삼성 면접', result: '예상 질문 유연성' },
+  { exam: '수능', result: '당일 운 82' },
+  { exam: '9급 공채', result: '행운의 찍기 번호 4번' },
+  { exam: '은행 면접', result: '예상 질문 협업' },
+]
+
+const ROW_2: Item[] = [
+  { exam: '토익', result: '행운 색 남색' },
+  { exam: '공기업 면접', result: '예상 질문 책임감' },
+  { exam: '편입', result: '행운의 찍기 번호 1번' },
+  { exam: '승진 시험', result: '당일 운 74' },
+  { exam: 'IT 기업 면접', result: '예상 질문 문제 해결' },
+]
+
+const MASK =
+  'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)'
 
 export default function Marquee() {
-  const shouldReduceMotion = useReducedMotion()
-
   return (
-    // 제목 → 흐르는 줄 → 문구 순으로 떠오릅니다 (FIX_3 [6]-3)
-    <RevealList as="section" className="pt-section">
-      <RevealItem as="div">
-        <h2 className="px-screen text-card-title">세상 모든 시험</h2>
-      </RevealItem>
-
-      <RevealItem className="mt-3 space-y-2">
-        {shouldReduceMotion ? (
-          <StaticRows />
-        ) : (
-          <>
-            {/* 흐르는 줄은 목록을 두 벌 반복하므로 읽어주면 같은 말이
-                두 번 나옵니다. 낭독용으로 한 벌만 따로 둡니다 */}
-            <ul className="sr-only">
-              {[...ROW_1, ...ROW_2].map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-            <Row items={ROW_1} direction="left" seconds={28} />
-            <Row items={ROW_2} direction="right" seconds={34} />
-          </>
-        )}
-      </RevealItem>
-
-      <RevealItem
-        className="mt-4 whitespace-pre-line px-screen text-body"
-        style={{ color: 'var(--text-sub)' }}
+    <Rise as="section" style={{ margin: '112px 12px 0' }}>
+      <BezelCard
+        radius={30}
+        style={{ position: 'relative' }}
+        innerStyle={{ padding: '28px 0 24px' }}
       >
-        {'내 인생의 터닝 포인트가 되는 날\n그날의 운과 잠재력 발휘 지수를\nAI 합격이가 봐드려요'}
-      </RevealItem>
-    </RevealList>
+        {/*
+          카드에 걸터앉은 합격이. 발끝이 카드 안쪽으로 내려와야 "앉아 있다"로
+          읽힙니다. 카드 위 여백을 112px로 크게 잡아 둔 것이 이 자리입니다.
+        */}
+        <Image
+          src="/character/hihi.png"
+          alt={`카드에 걸터앉아 손을 흔드는 ${CHARACTER_NAME}`}
+          width={168}
+          height={168}
+          style={{
+            position: 'absolute',
+            right: 20,
+            top: -78,
+            width: 84,
+            height: 'auto',
+            display: 'block',
+            zIndex: 2,
+          }}
+        />
+
+        <h2
+          style={{
+            margin: '0 0 6px',
+            padding: '0 20px',
+            textAlign: 'center',
+            fontSize: 22,
+            fontWeight: 800,
+            letterSpacing: '-0.03em',
+            color: 'var(--ink)',
+          }}
+        >
+          세상에 존재하는{' '}
+          <span
+            style={{
+              background: 'linear-gradient(transparent 58%, #FFE08A 58%)',
+            }}
+          >
+            모든 시험
+          </span>
+        </h2>
+
+        {/* "예시"를 반드시 적습니다. 지어낸 실제 사용자 결과로 오해받지 않게 */}
+        <p
+          style={{
+            margin: '0 0 20px',
+            textAlign: 'center',
+            fontSize: 13,
+            color: 'var(--ink-sub)',
+          }}
+        >
+          이런 결과를 알려드려요 · 예시
+        </p>
+
+        {/*
+          흐르는 줄은 목록을 두 벌 반복하므로 읽어주면 같은 말이 두 번
+          나옵니다. 낭독용으로 한 벌만 따로 둡니다.
+        */}
+        <ul className="sr-only">
+          {[...ROW_1, ...ROW_2].map((item) => (
+            <li key={item.exam}>
+              {item.exam} · {item.result}
+            </li>
+          ))}
+        </ul>
+
+        <Row items={ROW_1} direction="left" seconds={40} className="mb-2" />
+        <Row items={ROW_2} direction="right" seconds={44} className="mb-[22px]" />
+
+        <p
+          style={{
+            margin: 0,
+            padding: '0 20px',
+            textAlign: 'center',
+            fontSize: 14,
+            lineHeight: 1.7,
+            color: 'var(--ink-sub)',
+          }}
+        >
+          내 인생의 터닝 포인트가 되는 날
+          <br />
+          그날의 운과 잠재력 발휘 지수를
+          <br />
+          AI 합격이가 봐드려요
+        </p>
+      </BezelCard>
+    </Rise>
   )
 }
 
 interface RowProps {
-  items: string[]
+  items: Item[]
   direction: 'left' | 'right'
   seconds: number
+  className?: string
 }
 
-function Row({ items, direction, seconds }: RowProps) {
+function Row({ items, direction, seconds, className }: RowProps) {
   return (
     <div
-      className="overflow-hidden"
+      className={`marquee-mask ${className ?? ''}`}
       style={{
-        maskImage:
-          'linear-gradient(90deg, transparent, black 12%, black 88%, transparent)',
-        WebkitMaskImage:
-          'linear-gradient(90deg, transparent, black 12%, black 88%, transparent)',
+        overflow: 'hidden',
+        maskImage: MASK,
+        WebkitMaskImage: MASK,
       }}
       // 목록이 두 번 반복되므로 읽어주면 같은 말이 두 번 나옵니다
       aria-hidden
     >
-      {/*
-        간격을 gap이 아니라 각 항목의 margin-right로 줍니다.
-        gap이면 마지막 항목 뒤에 간격이 없어서 두 벌의 이음매만 24px
-        좁아집니다. -50%로 되돌아오는 순간 그만큼 튑니다.
-      */}
       <div
-        className="flex w-max"
-        style={{
-          animation: `marquee-${direction} ${seconds}s linear infinite`,
-        }}
+        className="marquee-row flex w-max"
+        style={{ animation: `marquee-${direction} ${seconds}s linear infinite` }}
       >
-        {[...items, ...items].map((t, i) => (
-          <Chip key={i} label={t} flowing />
+        {items.map((item, i) => (
+          <Pill key={`a-${i}`} item={item} />
+        ))}
+        {/* 두 번째 벌. 이음매를 메우는 용도라 멈춘 상태에서는 숨깁니다 */}
+        {items.map((item, i) => (
+          <Pill key={`b-${i}`} item={item} duplicate />
         ))}
       </div>
     </div>
   )
 }
 
-/** 흐르지 않을 때는 두 줄을 합쳐 줄바꿈으로 전부 보여줍니다 */
-function StaticRows() {
+function Pill({ item, duplicate = false }: { item: Item; duplicate?: boolean }) {
   return (
-    <ul className="flex flex-wrap gap-2 px-screen">
-      {[...ROW_1, ...ROW_2].map((t) => (
-        <li key={t}>
-          <Chip label={t} />
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-/** flowing이면 간격을 margin-right로 줍니다 (위 주석 참조) */
-function Chip({ label, flowing = false }: { label: string; flowing?: boolean }) {
-  return (
-    <span
-      className="block whitespace-nowrap px-[14px] py-2 text-body"
-      style={{
-        background: 'var(--surface)',
-        borderRadius: 'var(--radius-chip)',
-        boxShadow: 'var(--shadow-card)',
-        marginRight: flowing ? 24 : undefined,
-      }}
-    >
-      {label}
+    <span className={duplicate ? 'pill dup' : 'pill'} style={{ marginRight: 8 }}>
+      <b>{item.exam}</b>
+      <i aria-hidden />
+      <span>{item.result}</span>
     </span>
   )
 }
