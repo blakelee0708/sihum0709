@@ -21,6 +21,7 @@ import type { Metadata } from 'next'
 
 import DiffCards from '@/components/landing/DiffCards'
 import Hero from '@/components/landing/Hero'
+import LandingFooter from '@/components/landing/LandingFooter'
 import Marquee from '@/components/landing/Marquee'
 import Preview from '@/components/landing/Preview'
 import Rise from '@/components/landing/Rise'
@@ -28,7 +29,6 @@ import RiseEffects from '@/components/landing/RiseEffects'
 import StartCta from '@/components/landing/StartCta'
 import UserBlock from '@/components/landing/UserBlock'
 import NoticeBanner from '@/components/layout/NoticeBanner'
-import Disclaimer from '@/components/layout/Disclaimer'
 
 export const metadata: Metadata = {
   title: '시험사주 · 시험 보는 날 내 기운은 어떨까?',
@@ -102,8 +102,8 @@ export default function HomePage() {
         </p>
       </Rise>
 
-      {/* FIX_5 [6]에서 사업자 정보를 담은 푸터로 교체합니다 */}
-      <Disclaimer />
+      {/* 결제 PG 심사에 필요한 사업자 정보와 고지 (FIX_5 [6]) */}
+      <LandingFooter />
     </main>
   )
 }
