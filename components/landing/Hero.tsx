@@ -15,10 +15,14 @@
  *
  * 구조가 세 겹입니다.
  *
- *   무대      높이 118px. 합격이가 설 자리를 비워 둡니다
- *   잘림 영역  overflow: hidden. 아래 8px이 카드와 겹쳐서, 잘린 경계선이
- *             카드에 가려 보이지 않습니다
+ *   무대      높이 96px. 합격이가 설 자리를 비워 둡니다
+ *   잘림 영역  150×175, overflow: hidden. 아래 8px이 카드와 겹쳐서, 잘린
+ *             경계선이 카드에 가려 보이지 않습니다
  *   카드      z-index 2. 합격이보다 위에 그려져야 "뒤에서" 올라옵니다
+ *
+ * 합격이를 110px에서 128px로 키우고 무대를 118px에서 96px로 줄였습니다.
+ * 잘림 영역과 후광도 같은 비율(×1.16)로 키워 잘리는 위치를 유지합니다.
+ * 셋 중 하나만 바꾸면 발이 카드 위로 올라오거나 머리가 부제를 칩니다.
  *
  * 등장 순서와 값은 globals.css의 hero-card / hero-halo / hero-char에
  * 있습니다. `.go`는 RiseEffects가 붙입니다.
@@ -73,9 +77,13 @@ export default function Hero() {
           본인 사주로 알려드려요
         </p>
 
+        {/*
+          아래 여백이 26px이었습니다. 합격이 무대가 바로 이어지는데 그
+          여백까지 더해져 부제와 합격이 사이가 비어 보였습니다.
+        */}
         <p
           style={{
-            margin: '0 0 26px',
+            margin: '0 0 4px',
             padding: '0 20px',
             textAlign: 'center',
             fontSize: 13,
@@ -98,7 +106,7 @@ export default function Hero() {
         style={{ position: 'relative', padding: '0 16px', marginBottom: 30 }}
       >
         {/* 합격이 무대 */}
-        <div style={{ position: 'relative', height: 118 }}>
+        <div style={{ position: 'relative', height: 96 }}>
           {/*
             잘림 영역. 아래 8px이 카드 영역으로 내려가 있고 카드가 그 위에
             그려지므로, 합격이가 잘린 선이 카드 테두리에 가려집니다.
@@ -108,8 +116,8 @@ export default function Hero() {
               position: 'absolute',
               right: 26,
               bottom: -8,
-              width: 130,
-              height: 150,
+              width: 150,
+              height: 175,
               overflow: 'hidden',
             }}
           >
@@ -120,8 +128,8 @@ export default function Hero() {
                 position: 'absolute',
                 left: 0,
                 right: 0,
-                bottom: -30,
-                height: 150,
+                bottom: -35,
+                height: 175,
                 background:
                   'radial-gradient(circle, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.55) 45%, rgba(255,255,255,0) 70%)',
               }}
@@ -136,9 +144,9 @@ export default function Hero() {
               priority
               style={{
                 position: 'absolute',
-                left: 10,
-                bottom: -34,
-                width: 110,
+                left: 11,
+                bottom: -40,
+                width: 128,
                 height: 'auto',
               }}
             />
